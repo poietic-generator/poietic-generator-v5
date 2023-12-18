@@ -1,0 +1,78 @@
+---
+site_name: Poietic Generator Documentation
+site_dir: _build/docs
+
+# theme_dir: 'themes/mkdocs-material/material'
+# theme_dir: 'themes/mkdocs-material'
+
+site_author: 'BOLDCODE'
+site_url: 'http://glenux.github.io/teaching-boilerplate'
+
+# copyright: 'Copyright (c) 2016 Glenux'
+
+repo_name: 'Source'
+repo_url: 'https://gitlab.com/poietic-generator/poietic-generator-documentation'
+# site_favicon: 'favicon.ico'
+
+theme:
+  logo: images/logo.png
+  language: en
+  # name: 'gitbook'
+  # name: 'alabaster'
+  # name: 'windmill'
+  # name: 'ivory'
+  name: 'material'
+  palette:
+    primary: 'teal'
+    accent: 'black'
+    neutral: 'black'
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+
+
+i18n:
+  prev: 'Previous Chapter'
+  next: 'Next Chapter'
+
+extra_css:
+  - css/extra.css
+
+extra_javascript:
+  - js/extra.js
+
+# author:
+#   github: 'glenux'
+#   twitter: 'glenux'
+
+# Extensions
+markdown_extensions:
+  - footnotes
+  - admonition
+  - toc:
+      permalink: '#'
+  - codehilite:
+      guess_lang: false
+
+  # pip install mdx_truly_sane_lists
+  - mdx_truly_sane_lists
+
+  # pip install pymdown-extensions
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+      #
+  # pip install pymdown-extensions
+  - pymdownx.superfences:
+
+plugins:
+  - include-markdown
+  - awesome-pages
+  - glightbox
+
+extra:
+  search:
+    language: 'fr, en'
+
+# run the following line to update toc
+# pipenv run ./script/update-toc
