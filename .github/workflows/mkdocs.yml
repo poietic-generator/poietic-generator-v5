@@ -33,6 +33,8 @@ jobs:
           submodules: true
       - name: Install mkdocs
         run: |
+          apt-get update
+          apt-get install -y plantuml
           pip3 install pipenv
           make prepare
       - name: Setup Pages
