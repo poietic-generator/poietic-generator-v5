@@ -34,6 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install mdBook
         run: |
+          pip3 install pipenv
           make prepare
       - name: Setup Pages
         id: pages
