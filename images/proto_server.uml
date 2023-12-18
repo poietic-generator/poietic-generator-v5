@@ -1,0 +1,29 @@
+@startuml
+title "PoeticGen: server join"
+autonumber "<b>(##)</b> "
+
+
+== Authentication ==
+
+== Federate ==
+
+Server1 -> Server2 : federation_request
+note left
+federation_type: string
+federation_for: string
+end note
+
+Server1 <-- Server2 : federation_response
+note right
+either OK or NOK
+end note
+
+== Neighboor exchange ==
+
+Server1 -> Server2 : neighboor_list_request
+Server1 <-- Server2 : neighboor_list_response
+
+Server1 -> Server2 : server_quit
+
+== Player exchange ==
+@enduml

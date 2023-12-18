@@ -16,9 +16,13 @@ BUILD_IMAGES_DIR=images
 ## Ports
 DOCS_PORT=5100
 
+PLANTUML_SRC_DIR=images
+PLANTUML_DEST_DIR=images
+
 ## Find .uml graphs
 DOCS_IMAGES_UML=$(shell find $(IMAGES_DIR) \( -name '*.uml' ! -name '_*' \))
 DOCS_IMAGES_UML_SVG=$(patsubst $(IMAGES_DIR)/%.uml,$(BUILD_IMAGES_DIR)/%.uml.svg,$(DOCS_IMAGES_UML))
+DOCS_IMAGES_UML_PDF=$(patsubst $(IMAGES_DIR)/%.uml,$(BUILD_IMAGES_DIR)/%.uml.pdf,$(DOCS_IMAGES_UML))
 
 ## Find .dot graphs
 DOCS_IMAGES_DOT=$(shell find $(IMAGES_DIR) \( -name '*.dot' ! -name '_*' \))
@@ -35,6 +39,7 @@ DOCS_IMAGES_ORA_PNG=$(patsubst $(IMAGES_DIR)/%.ora,$(BUILD_IMAGES_DIR)/%.ora.png
 ## Merge all lists
 DOCS_IMAGES_SVG=$(DOCS_IMAGES_DOT_SVG) $(DOCS_IMAGES_CIRCO_SVG) $(DOCS_IMAGES_UML_SVG)
 DOCS_IMAGES_PNG=$(DOCS_IMAGES_ORA_PNG)
+DOCS_IMAGES_PDF=$(DOCS_IMAGES_UML_PDF)
 
 all: help
 
@@ -60,8 +65,9 @@ build-images: ## build images
 build-images: build-images-svg build-images-png build-images-pdf
 
 build-images-svg: $(DOCS_IMAGES_SVG) 
-build-images-png: $(DOCS_IMAGES_PNG) 
-# build-images-pdf: mocodo-pdf
+build-images-png: $(DOCS_IMAGES_PNG)
+build-images-pdf: mocodo-pdf
+build-images-pdf: $(DOCS_IMAGES_PDF)
 
 .PHONY: build-images build-images-svg build-images-png build-images-pdf
 
@@ -70,26 +76,6 @@ build-images-png: $(DOCS_IMAGES_PNG)
 		&& unzip -q $< -d "$$TMPDIR" mergedimage.png \
 		&& touch "$$TMPDIR/mergedimage.png" \
 		&& mv "$$TMPDIR/mergedimage.png" $@
-
-# plantuml -pipe -tsvg < $< > $$TMP
-%.uml.svg: %.uml
-	TMP=$$(mktemp -d) && \
-	FILE=$$TMP/$$(basename $< .uml).svg && \
-		pipenv run plantuml -tsvg -o $$TMP $< && \
-		mv $$FILE $@ || \
-		(echo "ERROR" && cat $$FILE && exit 1)
-
-%.dot.svg: %.dot
-	TMP=$$(mktemp) && \
-		dot -Tsvg $< > $$TMP && \
-		mv $$TMP $@ || \
-		exit 1
-
-%.circo.svg: %.circo
-	TMP=$$(mktemp) && \
-		circo -Tsvg $< > $$TMP && \
-		mv $$TMP $@ || \
-		exit 1
 
 watch: ## run development server
 	pipenv run honcho start
@@ -163,4 +149,5 @@ fixme:
 
 .PHONY: fixme
 
-# -include .makefiles/mocodo.mk
+-include .makefiles/mocodo.mk
+-include .makefiles/plantuml.mk
