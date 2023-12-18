@@ -61,7 +61,7 @@ build-images: build-images-svg build-images-png build-images-pdf
 
 build-images-svg: $(DOCS_IMAGES_SVG) 
 build-images-png: $(DOCS_IMAGES_PNG) 
-build-images-pdf: mocodo-pdf
+# build-images-pdf: mocodo-pdf
 
 .PHONY: build-images build-images-svg build-images-png build-images-pdf
 
@@ -147,7 +147,7 @@ help: ## print this help
 ## Clean
 ##
 
-clean: clean-docs mocodo-clean # remove generated documents
+clean: clean-docs # mocodo-clean # remove generated documents
 
 clean-docs:
 	rm -fr $(BUILD_DOCS_DIR) # remove generated static docs site
@@ -163,4 +163,4 @@ fixme:
 
 .PHONY: fixme
 
--include .makefiles/mocodo.mk
+# -include .makefiles/mocodo.mk
