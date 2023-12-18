@@ -5,13 +5,14 @@ site_dir: _build/docs
 # theme_dir: 'themes/mkdocs-material/material'
 # theme_dir: 'themes/mkdocs-material'
 
-site_author: 'BOLDCODE'
-site_url: 'http://glenux.github.io/teaching-boilerplate'
+site_author: 'Glenn Y. Rolland'
+  # site_url: 'http://glenux.github.io/teaching-boilerplate'
+site_url: 'https://poietic-generator.github.io/poietic-generator-documentation/'
 
 # copyright: 'Copyright (c) 2016 Glenux'
 
 repo_name: 'Source'
-repo_url: 'https://gitlab.com/poietic-generator/poietic-generator-documentation'
+repo_url: 'https://github.com/poietic-generator/poietic-generator-documentation'
 # site_favicon: 'favicon.ico'
 
 theme:
