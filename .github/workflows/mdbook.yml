@@ -29,6 +29,8 @@ jobs:
       MDBOOK_VERSION: 0.4.36
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Install mkdocs
         run: |
           pip3 install pipenv
