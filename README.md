@@ -1,6 +1,6 @@
 # Poietic Generator Documentation
 
-You can read the resulting pages of Poietic Generator Documentation at https://boldcode.gitlab.io/veilleur-des-medias/vedem-documentation/
+You can read the resulting pages of Poietic Generator Documentation at https://poietic-generator.github.io/poietic-generator-documentation/
 
 For contributing to this documnation, you'll find all details below.
 
