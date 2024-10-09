@@ -1,0 +1,5 @@
+---
+# vim: set ft=yaml :
+collapse_single_pages: true
+nav:
+  - ... | regex=^[0-9]*[1-9][0-9]*.*

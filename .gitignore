@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /doc/
 /lib/
 /bin/
@@ -8,3 +9,26 @@
 # Libraries don't need dependency lock
 # Dependencies will be locked in application that uses them
 /shard.lock
+=======
+**/*~
+/_*/
+.bundle
+*.docx
+*.epub
+/images/*.circo.svg
+/images/*.dot.svg
+/images/*.ora.png
+/images/*.uml.svg
+.marp/*.css
+node_modules
+*.pdf
+.sass-cache
+tmp*
+\.vagrant
+vendor/bundle
+*.zip
+*.mcd.mld
+*.mcd.mld.svg
+*.mcd.svg
+
+>>>>>>> origin/master
