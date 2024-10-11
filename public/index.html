@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poietic Generator</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        #poietic-grid {
+            position: relative;
+            background-color: #ffffff;
+            border: 1px solid #000;
+            overflow: hidden;
+        }
+        .user-cell {
+            position: absolute;
+            border: 1px solid #000;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div id="poietic-grid"></div>
+    <script src="/js/poietic-client.js"></script>
+</body>
+</html>
