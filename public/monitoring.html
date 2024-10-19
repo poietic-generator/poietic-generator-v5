@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poietic Generator - Monitoring</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .popup {
+            position: fixed;
+            background-color: white;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            resize: both;
+            overflow: auto;
+            min-width: 200px;
+            min-height: 200px;
+        }
+        .popup-header {
+            padding: 10px;
+            cursor: move;
+            background-color: #f1f1f1;
+            color: #000;
+            font-weight: bold;
+        }
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-btn:hover,
+        .close-btn:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .popup-content {
+            padding: 10px;
+            width: 100%;
+            height: calc(100% - 40px);
+            box-sizing: border-box;
+        }
+        #grid-popup {
+            top: 50px;
+            left: 50px;
+            width: 400px;
+            height: 400px;
+        }
+        #color-profile-popup {
+            top: 50px;
+            right: 50px;
+            width: 300px;
+            height: 200px;
+        }
+        #poietic-grid {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #color-profile-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        .user-cell {
+            position: absolute;
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .sub-cell {
+            width: 100%;
+            height: 100%;
+        }
+        #stats {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="grid-popup" class="popup">
+        <div class="popup-header">
+            <span>Dessin collectif</span>
+            <span class="close-btn">&times;</span>
+        </div>
+        <div class="popup-content">
+            <div id="poietic-grid"></div>
+        </div>
+    </div>
+
+    <div id="color-profile-popup" class="popup">
+        <div class="popup-header">
+            <span>Profil chromatique</span>
+            <span class="close-btn">&times;</span>
+        </div>
+        <div class="popup-content">
+            <canvas id="color-profile-canvas"></canvas>
+        </div>
+    </div>
+
+    <div id="stats">
+        <h2>Statistiques en temps réel</h2>
+        <div id="stats-content"></div>
+    </div>
+
+    <script src="/js/poietic-client-monitoring.js"></script>
+</body>
+</html>
+

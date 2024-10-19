@@ -4,25 +4,51 @@ require "json"
 
 class Grid
   property user_positions : Hash(String, Tuple(Int32, Int32))
+  property sub_cell_states : Hash(String, Hash(Tuple(Int32, Int32), String))
+  property initial_colors : Hash(String, Array(String))
 
   def initialize
     @user_positions = Hash(String, Tuple(Int32, Int32)).new
+    @sub_cell_states = Hash(String, Hash(Tuple(Int32, Int32), String)).new
+    @initial_colors = Hash(String, Array(String)).new
   end
 
   def set_user_position(user_id : String, position : Tuple(Int32, Int32))
     @user_positions[user_id] = position
+    @initial_colors[user_id] = generate_initial_colors unless @initial_colors.has_key?(user_id)
+    unless @sub_cell_states.has_key?(user_id)
+      @sub_cell_states[user_id] = Hash(Tuple(Int32, Int32), String).new
+      400.times do |i|
+        @sub_cell_states[user_id][{i % 20, i // 20}] = @initial_colors[user_id][i]
+      end
+    end
   end
 
   def get_user_position(user_id : String)
     @user_positions[user_id]
   end
 
-  def to_json
-    @user_positions.to_json
+  def to_json(json : JSON::Builder)
+    json.object do
+      json.field "user_positions" do
+        json.object do
+          @user_positions.each do |user_id, position|
+            json.field user_id do
+              json.array do
+                json.number position[0]
+                json.number position[1]
+              end
+            end
+          end
+        end
+      end
+    end
   end
 
   def remove_user(user_id : String)
     @user_positions.delete(user_id)
+    @sub_cell_states.delete(user_id)
+    @initial_colors.delete(user_id)
   end
 
   def find_next_available_position : Tuple(Int32, Int32)
@@ -30,6 +56,17 @@ class Grid
     
     spiral_positions = generate_spiral_positions(@user_positions.size + 1)
     spiral_positions.find { |pos| !@user_positions.values.includes?(pos) } || {0, 0}
+  end
+
+  def update_sub_cell(user_id : String, sub_x : Int32, sub_y : Int32, color : String)
+    if position = @user_positions[user_id]?
+      @sub_cell_states[user_id] ||= Hash(Tuple(Int32, Int32), String).new
+      @sub_cell_states[user_id][{sub_x, sub_y}] = color
+    end
+  end
+
+  def get_sub_cell_states(user_id : String)
+    @sub_cell_states[user_id]? || Hash(Tuple(Int32, Int32), String).new
   end
 
   private def generate_spiral_positions(count : Int32)
@@ -67,6 +104,17 @@ class Grid
   private def next_odd(n)
     n.even? ? n + 1 : n
   end
+
+  private def generate_initial_colors
+    Array.new(400) { random_color }
+  end
+
+  private def random_color
+    r = Random.rand(256)
+    g = Random.rand(256)
+    b = Random.rand(256)
+    "rgb(#{r},#{g},#{b})"
+  end
 end
 
 class Session
@@ -92,12 +140,21 @@ class Session
     user_id
   end
 
+  def add_observer(socket : HTTP::WebSocket)
+    observer_id = "observer_#{UUID.random}"
+    @users[observer_id] = socket
+    send_initial_state(observer_id)
+    observer_id
+  end
+
   def send_initial_state(user_id : String)
     initial_state = {
       type: "initial_state",
       grid_size: calculate_grid_size,
       grid_state: @grid.to_json,
-      user_colors: @user_colors
+      user_colors: @user_colors,
+      sub_cell_states: serialize_sub_cell_states,
+      my_user_id: user_id
     }.to_json
     @users[user_id].send(initial_state)
   end
@@ -134,7 +191,8 @@ class Session
       type: "zoom_update",
       grid_size: calculate_grid_size,
       grid_state: @grid.to_json,
-      user_colors: @user_colors
+      user_colors: @user_colors,
+      sub_cell_states: serialize_sub_cell_states
     }.to_json
     broadcast(zoom_update_message)
   end
@@ -149,9 +207,77 @@ class Session
   end
 
   def broadcast(message)
+    @users.each do |user_id, socket|
+      socket.send(message)
+    end
+  end
+
+  def send_to_observers(message)
+    @users.each do |user_id, socket|
+      if user_id.starts_with?("observer_")
+        socket.send(message)
+      end
+    end
+  end
+
+  # Modifiez ces méthodes pour envoyer les mises à jour aux observateurs
+  def handle_cell_update(user_id : String, sub_x : Int32, sub_y : Int32, color : String)
+    @grid.update_sub_cell(user_id, sub_x, sub_y, color)
+    update_message = {
+      type: "cell_update",
+      user_id: user_id,
+      sub_x: sub_x,
+      sub_y: sub_y,
+      color: color
+    }.to_json
+    broadcast(update_message)
+  end
+
+  def broadcast(message)
     @users.each do |_, socket|
       socket.send(message)
     end
+  end
+
+  def broadcast_new_user(new_user_id : String)
+    new_user_message = {
+      type: "new_user",
+      user_id: new_user_id,
+      position: @grid.get_user_position(new_user_id),
+      color: @user_colors[new_user_id]
+    }.to_json
+    broadcast(new_user_message)
+    send_to_observers(new_user_message)
+  end
+
+  def broadcast_user_left(user_id : String)
+    user_left_message = {
+      type: "user_left",
+      user_id: user_id,
+      grid_state: @grid.to_json
+    }.to_json
+    broadcast(user_left_message)
+    send_to_observers(user_left_message)
+  end
+
+  def serialize_sub_cell_states
+    @grid.sub_cell_states.transform_values do |user_sub_cells|
+      user_sub_cells.transform_keys do |key|
+        "#{key[0]},#{key[1]}"
+      end
+    end
+  end
+
+  def broadcast_zoom_update
+    zoom_update_message = {
+      type: "zoom_update",
+      grid_size: calculate_grid_size,
+      grid_state: @grid.to_json,
+      user_colors: @user_colors,
+      sub_cell_states: serialize_sub_cell_states
+    }.to_json
+    broadcast(zoom_update_message)
+    send_to_observers(zoom_update_message)
   end
 end
 
@@ -167,12 +293,45 @@ get "/" do |env|
   send_file env, "public/index.html"
 end
 
-ws "/updates" do |socket|
-  user_id = PoieticGenerator.current_session.add_user(socket)
+get "/full" do |env|
+  send_file env, "public/full.html"
+end
+
+get "/monitoring" do |env|
+  send_file env, "public/monitoring.html"
+end
+
+get "/js/:file" do |env|
+  file = env.params.url["file"]
+  send_file env, "public/js/#{file}"
+end
+
+ws "/updates" do |socket, context|
+  mode = context.request.query_params["mode"]?
+  is_observer = mode == "full" || mode == "monitoring"
+
+  user_id = if is_observer
+    PoieticGenerator.current_session.add_observer(socket)
+  else
+    PoieticGenerator.current_session.add_user(socket)
+  end
+
+  socket.on_message do |message|
+    parsed_message = JSON.parse(message)
+    if parsed_message["type"] == "cell_update" && !is_observer
+      PoieticGenerator.current_session.handle_cell_update(
+        user_id,
+        parsed_message["sub_x"].as_i,
+        parsed_message["sub_y"].as_i,
+        parsed_message["color"].as_s
+      )
+    end
+  end
 
   socket.on_close do
-    PoieticGenerator.current_session.remove_user(user_id)
+    PoieticGenerator.current_session.remove_user(user_id) unless is_observer
   end
 end
 
+Kemal.config.port = 3000
 Kemal.run

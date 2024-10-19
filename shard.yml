@@ -1,16 +1,19 @@
 name: poietic-generator-api
 version: 0.1.0
+authors:
+  - Your Name <olivierauber2@gmail.com>
+description: A Poietic Generator implementation with WebSocket support
+
+targets:
+  poietic-generator:
+    main: src/poietic-generator-api.cr
+
+crystal: 1.0.0
 
 dependencies:
   kemal:
     github: kemalcr/kemal
-  db:
-    github: crystal-lang/crystal-db
-  pg:
-    github: will/crystal-pg
+  msgpack:
+    github: crystal-community/msgpack-crystal
 
-targets:
-  poietic-generator-api:
-    main: src/poietic-generator-api.cr
-
-crystal: 1.7.3
+license: MIT
