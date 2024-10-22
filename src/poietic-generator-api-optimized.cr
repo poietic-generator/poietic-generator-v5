@@ -118,24 +118,25 @@ class Grid
 end
 
 class Session
+  INACTIVITY_TIMEOUT = 3.minutes
+
   property users : Hash(String, HTTP::WebSocket)
   property grid : Grid
   property user_colors : Hash(String, String)
-  property last_activity : Time
-  property disconnected_at : Time?
+  property last_activity : Hash(String, Time)
 
   def initialize
     @users = Hash(String, HTTP::WebSocket).new
     @grid = Grid.new
     @user_colors = Hash(String, String).new
-    @last_activity = Time.utc
-    @disconnected_at = nil
+    @last_activity = Hash(String, Time).new
   end
 
   def add_user(socket : HTTP::WebSocket) : String
     user_id = UUID.random.to_s
     @users[user_id] = socket
     @user_colors[user_id] = generate_random_color
+    @last_activity[user_id] = Time.utc
     position = @grid.find_next_available_position
     @grid.set_user_position(user_id, position)
     send_initial_state(user_id)
@@ -178,15 +179,16 @@ class Session
   end
 
   def calculate_grid_size
-    max_position = @grid.user_positions.values.map { |pos| [pos[0].abs, pos[1].abs].max }.max || 0
-    [3, (max_position * 2 + 1)].max
+    @grid.effective_size
   end
 
   def remove_user(user_id : String)
+    position = @grid.get_user_position(user_id)
     @grid.remove_user(user_id)
     @users.delete(user_id)
     @user_colors.delete(user_id)
-    broadcast_user_left(user_id)
+    @last_activity.delete(user_id)
+    broadcast_user_left(user_id, position)
     broadcast_zoom_update
   end
 
@@ -201,13 +203,13 @@ class Session
     broadcast(zoom_update_message)
   end
 
-  def broadcast_user_left(user_id : String)
-    user_left_message = {
+  def broadcast_user_left(user_id : String, position : Tuple(Int32, Int32))
+    message = {
       type: "user_left",
       user_id: user_id,
-      grid_state: @grid.to_json
+      position: position
     }.to_json
-    broadcast(user_left_message)
+    broadcast(message)
   end
 
   def broadcast(message)
@@ -283,6 +285,19 @@ class Session
     broadcast(zoom_update_message)
     send_to_observers(zoom_update_message)
   end
+
+  def update_user_activity(user_id : String)
+    @last_activity[user_id] = Time.utc
+  end
+
+  def check_inactivity
+    now = Time.utc
+    @last_activity.each do |user_id, last_active|
+      if now - last_active > INACTIVITY_TIMEOUT
+        remove_user(user_id)
+      end
+    end
+  end
 end
 
 module PoieticGenerator
@@ -332,17 +347,28 @@ ws "/updates" do |socket, context|
   socket.on_message do |message|
     parsed_message = JSON.parse(message)
     if parsed_message["type"] == "cell_update" && !is_observer
+      PoieticGenerator.current_session.update_user_activity(user_id)
       PoieticGenerator.current_session.handle_cell_update(
         user_id,
         parsed_message["sub_x"].as_i,
         parsed_message["sub_y"].as_i,
         parsed_message["color"].as_s
       )
+    elsif parsed_message["type"] == "heartbeat"
+      PoieticGenerator.current_session.update_user_activity(user_id)
     end
   end
 
   socket.on_close do
     PoieticGenerator.current_session.remove_user(user_id) unless is_observer
+  end
+end
+
+# Ajoutez cette tâche périodique pour vérifier l'inactivité
+spawn do
+  loop do
+    sleep 30.seconds
+    PoieticGenerator.current_session.check_inactivity
   end
 end
 

@@ -1,10 +1,6 @@
 class PoieticClientFull {
     constructor() {
-        console.log("PoieticClientFull: Constructor called");
         this.grid = document.getElementById('poietic-grid');
-        if (!this.grid) {
-            console.error("PoieticClientFull: Unable to find #poietic-grid element");
-        }
         this.cells = new Map();
         this.gridSize = 1;
         this.cellSize = 0;
@@ -13,26 +9,24 @@ class PoieticClientFull {
     }
 
     connect() {
-        console.log("PoieticClientFull: Connecting to WebSocket");
         this.socket = new WebSocket('ws://localhost:3000/updates?mode=full');
-        this.socket.onopen = () => {
-            console.log("PoieticClientFull: WebSocket connection established");
-        };
         this.socket.onmessage = (event) => {
-            console.log("PoieticClientFull: Message received", event.data);
             const message = JSON.parse(event.data);
             this.handleMessage(message);
         };
+        this.socket.onopen = () => {
+            console.log('WebSocket connection established for full display');
+        };
         this.socket.onerror = (error) => {
-            console.error("PoieticClientFull: WebSocket error", error);
+            console.error('WebSocket error:', error);
         };
         this.socket.onclose = () => {
-            console.log("PoieticClientFull: WebSocket connection closed");
+            console.log('WebSocket connection closed for full display');
         };
     }
 
     handleMessage(message) {
-        console.log("PoieticClientFull: Handling message", message.type);
+        console.log('Received message:', message);
         switch (message.type) {
             case 'initial_state':
                 this.initializeState(message);
@@ -53,17 +47,18 @@ class PoieticClientFull {
     }
 
     initializeState(state) {
-        console.log("PoieticClientFull: Initializing state");
+        console.log('Initializing state:', state);
         this.gridSize = state.grid_size;
         const parsedGridState = JSON.parse(state.grid_state);
-
+        
+        // Clear existing cells
         this.cells.forEach(cell => this.grid.removeChild(cell));
         this.cells.clear();
-
+        
         Object.entries(parsedGridState.user_positions).forEach(([userId, position]) => {
             this.updateCell(userId, position[0], position[1]);
         });
-
+        
         if (state.sub_cell_states) {
             Object.entries(state.sub_cell_states).forEach(([userId, subCells]) => {
                 Object.entries(subCells).forEach(([coords, color]) => {
@@ -72,12 +67,12 @@ class PoieticClientFull {
                 });
             });
         }
-
+        
         this.updateGridSize();
     }
 
     updateCell(userId, x, y) {
-        console.log(`PoieticClientFull: Updating cell for user ${userId} at (${x}, ${y})`);
+        console.log(`Updating cell for user ${userId} at position (${x}, ${y})`);
         let cell = this.cells.get(userId);
         if (!cell) {
             cell = document.createElement('div');
@@ -107,8 +102,6 @@ class PoieticClientFull {
         cell.style.top = `${pixelY}px`;
         cell.style.width = `${this.cellSize}px`;
         cell.style.height = `${this.cellSize}px`;
-        cell.style.position = 'absolute';
-        console.log(`PoieticClientFull: Cell positioned at (${pixelX}, ${pixelY}), size: ${this.cellSize}px`);
     }
 
     updateSubCell(userId, subX, subY, color) {
@@ -122,38 +115,36 @@ class PoieticClientFull {
     }
 
     addNewUser(userId, position) {
-        console.log(`PoieticClientFull: Adding new user ${userId} at position (${position[0]}, ${position[1]})`);
+        console.log(`Adding new user ${userId} at position (${position[0]}, ${position[1]})`);
         this.updateCell(userId, position[0], position[1]);
-        this.updateGridSize();
     }
 
     removeUser(userId) {
-        console.log(`PoieticClientFull: Removing user ${userId}`);
+        console.log(`Removing user ${userId}`);
         const cell = this.cells.get(userId);
         if (cell) {
             this.grid.removeChild(cell);
             this.cells.delete(userId);
         }
-        this.updateGridSize();
     }
 
     updateZoom(newGridSize, gridState, subCellStates) {
-        console.log(`PoieticClientFull: Updating zoom to grid size ${newGridSize}`);
+        console.log('Updating zoom:', newGridSize);
         this.gridSize = newGridSize;
         const parsedGridState = JSON.parse(gridState);
-
-        // Supprimer les cellules qui ne sont plus présentes
+        
+        // Update existing cells and add new ones
+        Object.entries(parsedGridState.user_positions).forEach(([userId, position]) => {
+            this.updateCell(userId, position[0], position[1]);
+        });
+        
+        // Remove cells that are no longer present
         this.cells.forEach((cell, userId) => {
             if (!parsedGridState.user_positions[userId]) {
                 this.removeUser(userId);
             }
         });
-
-        // Mettre à jour ou ajouter les cellules
-        Object.entries(parsedGridState.user_positions).forEach(([userId, position]) => {
-            this.updateCell(userId, position[0], position[1]);
-        });
-
+        
         if (subCellStates) {
             Object.entries(subCellStates).forEach(([userId, subCells]) => {
                 Object.entries(subCells).forEach(([coords, color]) => {
@@ -162,29 +153,19 @@ class PoieticClientFull {
                 });
             });
         }
-
+        
         this.updateGridSize();
     }
 
     updateGridSize() {
-        console.log("PoieticClientFull: Updating grid size");
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-        const gridSize = Math.min(windowWidth, windowHeight);
-        
-        this.grid.style.width = `${gridSize}px`;
-        this.grid.style.height = `${gridSize}px`;
-        this.grid.style.left = `${(windowWidth - gridSize) / 2}px`;
-        this.grid.style.top = `${(windowHeight - gridSize) / 2}px`;
-        
-        this.cellSize = Math.max(1, gridSize / this.gridSize);
-        
+        const screenSize = Math.min(window.innerWidth, window.innerHeight);
+        this.cellSize = screenSize / this.gridSize;
+        this.grid.style.width = `${screenSize}px`;
+        this.grid.style.height = `${screenSize}px`;
         this.cells.forEach((cell, userId) => {
             const position = this.getCellPosition(cell);
             this.positionCell(cell, position[0], position[1]);
         });
-        
-        console.log(`PoieticClientFull: Grid size set to ${gridSize}px, cell size: ${this.cellSize}px`);
     }
 
     getCellPosition(cell) {
@@ -196,14 +177,11 @@ class PoieticClientFull {
 
     addResizeListener() {
         window.addEventListener('resize', () => {
-            console.log("PoieticClientFull: Window resized");
             this.updateGridSize();
         });
     }
 }
 
-console.log("poietic-client-full.js: Script loaded");
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("poietic-client-full.js: DOM content loaded");
     window.poieticClientFull = new PoieticClientFull();
 });

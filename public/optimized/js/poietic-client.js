@@ -26,6 +26,8 @@ class PoieticClient {
         this.disconnectedAt = null;
         this.reconnectTimeout = null;
         this.heartbeatInterval = null;
+        this.inactivityTimer = null;
+        this.inactivityTimeout = 3 * 60 * 1000; // 3 minutes en millisecondes
 
         this.connect();
         this.addResizeListener();
@@ -34,31 +36,35 @@ class PoieticClient {
         this.createActivityTimer();
         this.createHeartbeat();
         this.createReconnectButton();
+        this.updateReconnectButtonPosition();
+        window.addEventListener('resize', () => this.updateReconnectButtonPosition());
     }
 
     connect() {
         if (this.isConnected) {
-            console.log('Already connected, skipping reconnection');
-            return;
+            console.log('Déjà connecté, déconnexion avant reconnexion');
+            this.disconnect();
         }
 
         this.socket = new WebSocket('ws://localhost:3001/updates');
         this.socket.onopen = () => {
-            console.log('WebSocket connection established');
+            console.log('Connexion WebSocket établie');
             this.isConnected = true;
+            this.startHeartbeat();
+            this.resetInactivityTimer();
         };
         this.socket.onmessage = (event) => {
             const message = JSON.parse(event.data);
             this.handleMessage(message);
         };
         this.socket.onclose = () => {
-            console.log('WebSocket connection closed');
+            console.log('Connexion WebSocket fermée');
             this.isConnected = false;
             this.disconnectedAt = Date.now();
             this.updateActivityDisplay();
         };
         this.socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            console.error('Erreur WebSocket:', error);
         };
     }
 
@@ -73,6 +79,11 @@ class PoieticClient {
                 break;
             case 'user_left':
                 this.removeUser(message.user_id);
+                this.handlePositionFree(message.position);
+                if (message.user_id === this.myUserId) {
+                    this.handleInactivityTimeout();
+                }
+                // Ne pas appeler updateLastActivity() ici
                 break;
             case 'cell_update':
                 this.updateSubCell(message.user_id, message.sub_x, message.sub_y, message.color);
@@ -202,6 +213,7 @@ class PoieticClient {
         this.currentColor = color;
         this.lastSelectedColor = color;
         this.updateColorPreview();
+        this.updateLastActivity();
     }
 
     positionCell(cell, x, y) {
@@ -359,6 +371,8 @@ class PoieticClient {
     startDrawing(event) {
         this.isDrawing = true;
         this.draw(event);
+        this.resetInactivityTimer();
+        this.updateLastActivity();
     }
 
     draw(event) {
@@ -388,10 +402,14 @@ class PoieticClient {
             this.updateSubCell(this.myUserId, subX, subY, this.currentColor);
             this.sendCellUpdate(subX, subY, this.currentColor);
         }
+        this.resetInactivityTimer();
+        this.updateLastActivity();
     }
 
     stopDrawing() {
         this.isDrawing = false;
+        this.resetInactivityTimer();
+        this.updateLastActivity();
     }
 
     sendCellUpdate(subX, subY, color) {
@@ -533,40 +551,105 @@ class PoieticClient {
     }
 
     createReconnectButton() {
+        const cursorContainer = document.createElement('div');
+        cursorContainer.id = 'activity-cursor-container';
+        cursorContainer.style.position = 'fixed';
+        cursorContainer.style.zIndex = '1001';
+
+        const cursor = document.createElement('div');
+        cursor.id = 'activity-cursor';
+
         const reconnectButton = document.createElement('button');
         reconnectButton.id = 'reconnect-button';
         reconnectButton.textContent = 'RECONNECT';
         reconnectButton.style.display = 'none';
         reconnectButton.addEventListener('click', () => this.reconnect());
 
-        const cursorContainer = document.createElement('div');
-        cursorContainer.id = 'activity-cursor-container';
-        const cursor = document.createElement('div');
-        cursor.id = 'activity-cursor';
-
         cursorContainer.appendChild(cursor);
         cursorContainer.appendChild(reconnectButton);
         document.body.appendChild(cursorContainer);
+    }
 
-        // Ajoutez les styles CSS nécessaires ici ou dans un fichier CSS séparé
+    updateReconnectButtonPosition() {
+        const cursorContainer = document.getElementById('activity-cursor-container');
+        if (cursorContainer) {
+            if (window.innerWidth > window.innerHeight) {
+                cursorContainer.style.left = '10px';
+                cursorContainer.style.top = '50%';
+                cursorContainer.style.transform = 'translateY(-50%)';
+                cursorContainer.style.right = 'auto';
+                cursorContainer.style.bottom = 'auto';
+            } else {
+                cursorContainer.style.top = '10px';
+                cursorContainer.style.left = '50%';
+                cursorContainer.style.transform = 'translateX(-50%)';
+                cursorContainer.style.right = 'auto';
+                cursorContainer.style.bottom = 'auto';
+            }
+        }
     }
 
     showReconnectButton() {
         const reconnectButton = document.getElementById('reconnect-button');
-        if (reconnectButton) {
+        const cursorContainer = document.getElementById('activity-cursor-container');
+        if (reconnectButton && cursorContainer) {
             reconnectButton.style.display = 'block';
+            cursorContainer.style.zIndex = '1001'; // Assurez-vous que le conteneur est au-dessus de l'overlay
         }
     }
 
     reconnect() {
-        this.connect();
-        this.lastActivity = Date.now();
-        this.disconnectedAt = null;
-        this.updateActivityDisplay();
+        console.log('Tentative de reconnexion...');
+        
+        // Cacher l'overlay au lieu de le supprimer
+        const overlay = document.getElementById('disconnect-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+
+        // Cacher le bouton RECONNECT
         const reconnectButton = document.getElementById('reconnect-button');
         if (reconnectButton) {
             reconnectButton.style.display = 'none';
         }
+
+        // Réinitialiser l'état du client
+        this.resetClientState();
+
+        // Se reconnecter au serveur
+        this.connect();
+    }
+
+    resetClientState() {
+        // Réinitialiser les variables d'état
+        this.cells.clear();
+        this.userPositions.clear();
+        this.userColors.clear();
+        this.gridSize = 1;
+        this.cellSize = 0;
+        this.subCellSize = 0;
+        this.currentColor = null;
+        this.lastSelectedColor = null;
+        this.isDrawing = false;
+        this.myUserId = null;
+        this.isOverGrid = false;
+        this.isOverOwnCell = false;
+        this.initialColors.clear();
+        this.isConnected = false;
+        this.cache.clear();
+
+        // Réinitialiser l'affichage
+        this.grid.innerHTML = '';
+        this.updateGridSize();
+        this.updateColorPreview();
+
+        // Réinitialiser les timers et intervalles
+        clearInterval(this.heartbeatInterval);
+        clearTimeout(this.inactivityTimer);
+        this.lastActivity = Date.now();
+        this.disconnectedAt = null;
+
+        console.log('État du client réinitialisé');
     }
 
     handleUserDisconnected(message) {
@@ -579,6 +662,64 @@ class PoieticClient {
     updateLastActivity() {
         this.lastActivity = Date.now();
         this.updateActivityDisplay();
+    }
+
+    startInactivityTimer() {
+        this.resetInactivityTimer();
+        document.addEventListener('mousemove', () => this.resetInactivityTimer());
+        document.addEventListener('keypress', () => this.resetInactivityTimer());
+        // Ajoutez d'autres événements si nécessaire
+    }
+
+    resetInactivityTimer() {
+        clearTimeout(this.inactivityTimer);
+        this.inactivityTimer = setTimeout(() => this.handleInactivityTimeout(), this.inactivityTimeout);
+    }
+
+    handleInactivityTimeout() {
+        console.log('Inactivité détectée, déconnexion...');
+        this.disconnect();
+        this.addOverlay();
+        this.showReconnectButton();
+    }
+
+    disconnect() {
+        console.log('Déconnexion...');
+        clearInterval(this.heartbeatInterval);
+        if (this.socket) {
+            this.socket.close();
+        }
+        this.isConnected = false;
+    }
+
+    addOverlay() {
+        let overlay = document.getElementById('disconnect-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'disconnect-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(128, 128, 128, 0.5)';
+            overlay.style.zIndex = '999';
+            document.body.appendChild(overlay);
+        }
+        overlay.style.display = 'block';
+    }
+
+    handlePositionFree(position) {
+        // Implémentez la logique pour montrer une position libre
+        console.log('Position libre:', position);
+    }
+
+    startHeartbeat() {
+        this.heartbeatInterval = setInterval(() => {
+            if (this.isConnected) {
+                this.socket.send(JSON.stringify({ type: 'heartbeat' }));
+            }
+        }, 20000); // Envoyer un heartbeat toutes les 20 secondes
     }
 }
 
