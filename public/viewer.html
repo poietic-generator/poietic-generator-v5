@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poietic Generator Viewer</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-color: black;
+        }
+        #poietic-grid {
+            width: 100%;
+            height: 100%;
+            max-width: 100vmin;
+            max-height: 100vmin;
+            position: relative;
+        }
+        .user-cell {
+            position: absolute;
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .user-cell.highlighted::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 4px solid rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .sub-cell {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="poietic-grid"></div>
+    <script src="http://192.168.0.193:3000/js/poietic-viewer.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof PoieticViewer !== 'undefined') {
+                console.log('PoieticViewer is defined');
+                window.poieticViewer = new PoieticViewer();
+            } else {
+                console.error('PoieticViewer is not defined. Make sure poietic-viewer.js is loaded correctly.');
+            }
+        });
+    </script>
+</body>
+</html>
