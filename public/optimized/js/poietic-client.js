@@ -28,6 +28,7 @@ class PoieticClient {
         this.heartbeatInterval = null;
         this.inactivityTimer = null;
         this.inactivityTimeout = 3 * 60 * 1000; // 3 minutes en millisecondes
+        this.isLocalUpdate = false;
 
         this.connect();
         this.addResizeListener();
@@ -69,6 +70,7 @@ class PoieticClient {
     }
 
     handleMessage(message) {
+        this.isLocalUpdate = false; // Réinitialiser le flag pour chaque message reçu
         console.log('Received message:', message);
         switch (message.type) {
             case 'initial_state':
@@ -76,6 +78,7 @@ class PoieticClient {
                 break;
             case 'new_user':
                 this.addNewUser(message.user_id, message.position, message.color);
+                // Ne pas mettre à jour l'activité ici
                 break;
             case 'user_left':
                 this.removeUser(message.user_id);
@@ -83,7 +86,7 @@ class PoieticClient {
                 if (message.user_id === this.myUserId) {
                     this.handleInactivityTimeout();
                 }
-                // Ne pas appeler updateLastActivity() ici
+                // Ne pas mettre à jour l'activité ici
                 break;
             case 'cell_update':
                 this.updateSubCell(message.user_id, message.sub_x, message.sub_y, message.color);
@@ -213,6 +216,7 @@ class PoieticClient {
         this.currentColor = color;
         this.lastSelectedColor = color;
         this.updateColorPreview();
+        this.isLocalUpdate = true;
         this.updateLastActivity();
     }
 
@@ -251,9 +255,8 @@ class PoieticClient {
             }
         }
 
-        if (userId === this.myUserId) {
-            this.lastActivity = Date.now();
-            this.updateActivityDisplay();
+        if (userId === this.myUserId && this.isLocalUpdate) {
+            this.updateLastActivity();
         }
     }
 
@@ -370,6 +373,7 @@ class PoieticClient {
 
     startDrawing(event) {
         this.isDrawing = true;
+        this.isLocalUpdate = true;
         this.draw(event);
         this.resetInactivityTimer();
         this.updateLastActivity();
@@ -400,6 +404,8 @@ class PoieticClient {
             const subY = Math.floor((y - (myCellRect.top - gridRect.top)) / (myCellRect.height / 20));
 
             this.updateSubCell(this.myUserId, subX, subY, this.currentColor);
+            this.isLocalUpdate = true;
+            this.updateLastActivity();
             this.sendCellUpdate(subX, subY, this.currentColor);
         }
         this.resetInactivityTimer();
@@ -408,18 +414,21 @@ class PoieticClient {
 
     stopDrawing() {
         this.isDrawing = false;
+        this.isLocalUpdate = true;
         this.resetInactivityTimer();
         this.updateLastActivity();
     }
 
     sendCellUpdate(subX, subY, color) {
-        const message = {
-            type: 'cell_update',
-            sub_x: subX,
-            sub_y: subY,
-            color: color
-        };
-        this.socket.send(JSON.stringify(message));
+        if (this.isConnected) {
+            const message = {
+                type: 'cell_update',
+                sub_x: subX,
+                sub_y: subY,
+                color: color
+            };
+            this.socket.send(JSON.stringify(message));
+        }
     }
 
     createColorPalette() {
@@ -660,8 +669,10 @@ class PoieticClient {
     }
 
     updateLastActivity() {
-        this.lastActivity = Date.now();
-        this.updateActivityDisplay();
+        if (this.isLocalUpdate) {
+            this.lastActivity = Date.now();
+            this.updateActivityDisplay();
+        }
     }
 
     startInactivityTimer() {
