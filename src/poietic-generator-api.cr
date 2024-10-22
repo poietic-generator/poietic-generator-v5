@@ -53,7 +53,7 @@ class Grid
 
   def find_next_available_position : Tuple(Int32, Int32)
     return {0, 0} if @user_positions.empty?
-    
+
     spiral_positions = generate_spiral_positions(@user_positions.size + 1)
     spiral_positions.find { |pos| !@user_positions.values.includes?(pos) } || {0, 0}
   end
@@ -301,9 +301,13 @@ get "/monitoring" do |env|
   send_file env, "public/monitoring.html"
 end
 
+get "/viewer" do |env|
+  send_file env, "public/viewer.html"
+end
+
 get "/js/:file" do |env|
   file = env.params.url["file"]
-  send_file env, "public/js/#{file}"
+  send_file env, "public/js/#{file}", "application/javascript"
 end
 
 ws "/updates" do |socket, context|
@@ -334,4 +338,7 @@ ws "/updates" do |socket, context|
 end
 
 Kemal.config.port = 3000
-Kemal.run
+Kemal.run do |config|
+  server = config.server.not_nil!
+  server.bind_tcp "0.0.0.0", 3000
+end
