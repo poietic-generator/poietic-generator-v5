@@ -1,0 +1,251 @@
+/* Reset et styles de base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+#main-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
+
+/* Zones principales */
+.tools-zone {
+    display: flex;
+    background-color: #f5f5f5;
+    flex: 1; /* Prendre l'espace disponible */
+}
+
+.main-zone {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    flex: none;
+    position: relative; /* Pour l'overlay */
+    background-color: #ffffff; /* Déplacé depuis drawing-area */
+}
+
+#disconnect-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(128, 128, 128, 0.5);
+    z-index: 2;
+}
+
+/* Sous-zones */
+.sub-zone {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+}
+
+.split-zone {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: #f0f0f0; /* Pour voir les zones */
+}
+
+/* Style pour les pastilles circulaires */
+.tool-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #4CAF50;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+/* Zone de dessin */
+#poietic-grid {
+    width: 100%;
+    height: 100%;
+    position: relative; /* Pour que l'overlay soit relatif à la grille */
+    background-color: white;
+}
+
+/* Cellules utilisateur */
+.user-cell {
+    position: absolute;
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    grid-template-rows: repeat(20, 1fr);
+    transition: all 0.3s ease;
+}
+
+.sub-cell {
+    width: 100%;
+    height: 100%;
+}
+
+.user-cell.highlighted::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 4px solid rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Outils de couleur */
+.color-tools {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#color-palette {
+    position: relative;
+    width: min(80%, 200px);
+    aspect-ratio: 1;
+}
+
+#color-preview {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+}
+
+#gradient-palette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    display: none;
+    cursor: crosshair;
+}
+
+/* Outils de connexion */
+.connection-tools {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    position: relative;
+}
+
+.activity-box {
+    width: 10px;
+    height: 100px;
+    background-color: #1f1b1b;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+#activity-cursor {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #e4e4e4;
+    transition: height 0.5s;
+}
+
+#reconnect-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(80%, 200px);
+    aspect-ratio: 1;
+    padding: 0;
+    background-color: #1f1b1b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: none;
+    font-weight: bold;
+    z-index: 10;
+}
+
+#reconnect-button:hover {
+    background-color: #1f1b1b;
+}
+
+/* Placeholder pour zones futures */
+.placeholder {
+    color: #999;
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+@media (orientation: portrait) {
+    #main-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .tools-zone {
+        flex-direction: row;
+        height: 16.66vh;
+        width: 100%; /* Prend toute la largeur */
+    }
+
+    .sub-zone {
+        flex-direction: row;
+        width: 100%;
+    }
+
+    .main-zone {
+        width: min(100vw, 66.66vh);
+        height: min(100vw, 66.66vh);
+    }
+}
+
+@media (orientation: landscape) {
+    #main-container {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .tools-zone {
+        flex-direction: column;
+        height: 100%;
+        width: auto; /* Laisse flex:1 gérer la largeur */
+    }
+
+    .sub-zone {
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .main-zone {
+        height: min(100vh, 66.66vw);
+        width: min(100vh, 66.66vw);
+    }
+}
