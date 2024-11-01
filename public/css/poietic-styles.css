@@ -1,90 +1,298 @@
-/* Reset et styles de base */
+/* Reset et variables */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-body, html {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
+:root {
+    --main-button-size: 160px;
+    --spacing: 8px;
+    --background-color: #000000;
+    --text-color: #ffffff;
+    --overlay-background: rgba(0, 0, 0, 0.7);
+    --grid-background: #000000;
+}
+
+/* Variables pour le mode clair */
+body.light-mode {
+    --background-color: #ffffff;
+    --text-color: #000000;
+    --overlay-background: rgba(255, 255, 255, 0.7);
+    --grid-background: #ffffff;
+}
+
+/* Structure principale */
+body {
+    position: relative;
+    z-index: 0;
 }
 
 #main-container {
     width: 100%;
-    height: 100%;
+    height: 100vh;
     display: flex;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
-/* Zones principales */
+/* Les deux tools-zones doivent se comporter de manière identique */
 .tools-zone {
     display: flex;
-    background-color: #f5f5f5;
-    flex: 1; /* Prendre l'espace disponible */
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    position: relative;
+    z-index: 100;
 }
 
+.sub-zone {
+    display: flex;
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    z-index: 200;
+}
+
+.split-zone {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;  /* Pour contenir l'overlay */
+    z-index: 300;
+}
+
+/* Boutons standards */
+.tool-circle {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Gestion des textes et SVG dans les boutons */
+.tool-circle > * {  /* Sélectionne tous les enfants directs */
+    position: relative;
+    z-index: 400;
+}
+
+/* Masquer le contenu des boutons en mode déconnecté */
+body.disconnected .tool-circle > * {
+    opacity: 0.3;  /* ou display: none; si vous préférez les cacher complètement */
+}
+
+/* Couleurs des boutons standards - temporairement en blanc pour debug */
+#zone-3a1 .tool-circle { background-color: #000000; }
+#zone-3a2 .tool-circle { background-color: #000000; }
+#zone-3c1 .tool-circle { background-color: #000000; }
+#zone-3c2 .tool-circle { background-color: #000000; }
+#zone-2a2 .tool-circle { background-color: #000000; }
+#zone-2c1 .tool-circle { background-color: #000000; }
+#zone-2c2 .tool-circle { background-color: #000000; }
+
+/* Boutons spéciaux */
+#zone-3b, #zone-2b {
+    aspect-ratio: 1/1;
+}
+
+/* Zone de connexion */
+.connection-tools {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    z-index: 400;
+}
+
+.activity-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000000;
+    z-index: 400;
+}
+
+#activity-cursor {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--background-color);
+    transition: height 0.3s ease, background-color 0.3s ease;
+    border-top: 1px solid var(--text-color);
+    z-index: 400;
+}
+
+/* Style du bouton reconnect */
+#reconnect-button {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    z-index: 450;
+    background-color: #000000;
+    color: white;
+    border: none;
+    outline: none;
+    /* Nouveaux styles pour harmoniser avec TIME OUT */
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+    font-size: 30px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.3s ease-in;
+}
+
+/* Activation du bouton reconnect */
+body.disconnected #reconnect-button {
+    display: block;
+    opacity: 1;
+}
+
+/* Zone de couleurs */
+
+.color-tools {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 400;
+}
+
+#color-palette {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    z-index: 400;
+}
+
+#color-preview {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    box-shadow: none;
+    cursor: pointer;
+    position: relative;
+    z-index: 400;
+}
+
+#gradient-palette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0;
+    display: none;
+    cursor: crosshair;
+    z-index: 450;
+}
+
+/* Zone de dessin */
 .main-zone {
     display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
     flex: none;
-    position: relative; /* Pour l'overlay */
-    background-color: #ffffff; /* Déplacé depuis drawing-area */
+    position: relative;
+    background-color: var(--grid-background);
+    transition: background-color 0.3s ease;
+    z-index: 100;
 }
 
+#poietic-grid {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background-color: var(--grid-background);
+    z-index: 200;
+}
+
+/* Overlay principal */
 #disconnect-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(128, 128, 128, 0.5);
-    z-index: 2;
+    background-color: var(--overlay-background);
+    z-index: 2000;
+    display: none;
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+    opacity: 0;  /* Commencer invisible */
+    transition: opacity 0.3s ease-in, background-color 0.3s ease;  /* Uniquement fade in */
 }
 
-/* Sous-zones */
-.sub-zone {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0.5rem;
-}
-
-.split-zone {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0.5rem;
-    background-color: #f0f0f0; /* Pour voir les zones */
-}
-
-/* Style pour les pastilles circulaires */
-.tool-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: #4CAF50;
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 0.8rem;
-    font-weight: bold;
-}
-
-/* Zone de dessin */
-#poietic-grid {
+/* Styles pour les textes de l'overlay */
+.overlay-title {
+    position: absolute;
+    top: 10px;
+    left: 0;
     width: 100%;
-    height: 100%;
-    position: relative; /* Pour que l'overlay soit relatif à la grille */
-    background-color: white;
+    color: var(--text-color);
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
 }
 
-/* Cellules utilisateur */
+.overlay-subtitle {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    width: 100%;
+    color: var(--text-color);
+    font-size: 28px;
+    font-family: 'Edwardian Script ITC', 'Brush Script MT', cursive;
+    text-align: center;
+}
+
+.overlay-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-color);
+    font-size: 48px;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+}
+
+.overlay-footer {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    width: 100%;
+    color: var(--text-color);
+    font-size: 12px;
+    text-align: center;
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+    font-weight: normal;
+}
+
+/* Activation de l'overlay uniquement en mode déconnecté */
+body.disconnected #disconnect-overlay {
+    display: block !important;
+    opacity: 1;  /* Devient visible avec la transition */
+}
+
+/* Styles des cellules utilisateurs */
 .user-cell {
     position: absolute;
     display: grid;
@@ -98,6 +306,7 @@ body, html {
     height: 100%;
 }
 
+/* Style pour la surbrillance des cellules */
 .user-cell.highlighted::before {
     content: '';
     position: absolute;
@@ -107,101 +316,92 @@ body, html {
     bottom: 0;
     border: 4px solid rgba(255, 255, 255, 0.8);
     pointer-events: none;
-    z-index: 1000;
+    z-index: 1500;
 }
 
-/* Outils de couleur */
-.color-tools {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-#color-palette {
-    position: relative;
-    width: min(80%, 200px);
-    aspect-ratio: 1;
-}
-
-#color-preview {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+/* Style du bouton de zoom - aussi en blanc */
+#zone-2a1 .tool-circle { 
+    background-color: #000000;
     cursor: pointer;
-}
-
-#gradient-palette {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
-    border-radius: 8px;
-    display: none;
-    cursor: crosshair;
 }
 
-/* Outils de connexion */
-.connection-tools {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
+/* Style de l'icône SVG */
+#zone-2a1 .zoom-icon {
+    width: min(40%, 40px);
+    height: min(40%, 40px);
     position: relative;
 }
 
-.activity-box {
-    width: 10px;
-    height: 100px;
-    background-color: #1f1b1b;
-    border-radius: 8px;
-    position: relative;
-    overflow: hidden;
+/* États du zoom - ajustement pour la visibilité */
+body.disconnected #zone-2a1 .zoom-normal,
+body.disconnected #zone-2a1 .zoom-active {
+    opacity: 0.3;
 }
 
-#activity-cursor {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #e4e4e4;
-    transition: height 0.5s;
-}
-
-#reconnect-button {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(80%, 200px);
-    aspect-ratio: 1;
-    padding: 0;
-    background-color: #1f1b1b;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
+/* États du zoom */
+#zone-2a1.zoomed .zoom-normal {
     display: none;
-    font-weight: bold;
-    z-index: 10;
 }
 
-#reconnect-button:hover {
-    background-color: #1f1b1b;
+#zone-2a1.zoomed .zoom-active {
+    display: block !important;
 }
 
-/* Placeholder pour zones futures */
-.placeholder {
-    color: #999;
-    font-size: 0.875rem;
-    text-align: center;
+/* Media queries */
+@media (orientation: landscape) {
+    #main-container {
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    .tools-zone {
+        flex-direction: column;
+        width: max(0px, calc((100vw - min(100vh, 66.66vw)) / 2));
+        min-width: 0;
+    }
+
+    #zone-3b, #zone-2b {
+        height: calc(100vh / 3);
+        width: 100%;
+        min-height: 0;
+    }
+
+    .sub-zone {
+        flex-direction: row;
+        height: calc(100vh / 3);
+        min-height: 0;
+    }
+
+    .split-zone {
+        width: 50%;
+        height: 100%;
+    }
+
+    .tool-circle {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .main-zone {
+        height: min(100vh, 66.66vw);
+        width: min(100vh, 66.66vw);
+        flex: 0 0 auto;
+        border-left: 1px solid #333;
+        border-right: 1px solid #333;
+    }
+
+    .activity-box {
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+    }
+
+    #reconnect-button {
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+    }
 }
 
 @media (orientation: portrait) {
@@ -212,40 +412,273 @@ body, html {
 
     .tools-zone {
         flex-direction: row;
-        height: 16.66vh;
-        width: 100%; /* Prend toute la largeur */
+        height: max(0px, calc((100vh - min(100vw, 66.66vh)) / 2));
+        min-height: 0;
+    }
+
+    #zone-3b, #zone-2b {
+        width: calc(100vw / 3);
+        height: 100%;
+        min-height: 0;
     }
 
     .sub-zone {
-        flex-direction: row;
+        flex-direction: column;
+        width: calc(100vw / 3);
+        min-height: 0;
+    }
+
+    .split-zone {
         width: 100%;
+        height: 50%;
+        min-height: 0;
+    }
+
+    .tool-circle {
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
     }
 
     .main-zone {
-        width: min(100vw, 66.66vh);
-        height: min(100vw, 66.66vh);
+        width: 100%;
+        height: min(100%, 66.66vh);
+        flex: 0 0 auto;
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+    }
+
+    .activity-box {
+        border-left: 1px solid #333;
+        border-right: 1px solid #333;
+    }
+
+    #reconnect-button {
+        border-left: 1px solid #333;
+        border-right: 1px solid #333;
     }
 }
 
+/* Ajouter ces styles avec les autres styles d'overlay */
+#welcome-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--overlay-background);
+    z-index: 2000;
+    visibility: hidden;  /* Utiliser visibility au lieu de display */
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+    opacity: 0;
+    transition: opacity 0.3s ease-out, visibility 0.3s ease-out, background-color 0.3s ease;  /* Transition sur les deux propriétés */
+}
+
+/* Quand il est visible */
+body.welcoming #welcome-overlay {
+    visibility: visible;  /* Utiliser visibility au lieu de display */
+    opacity: 1;
+}
+
+/* Les autres styles (.overlay-title, .overlay-subtitle, etc.) seront réutilisés */
+
+/* Style du bouton de thème */
+#zone-2c1 .tool-circle { 
+    background-color: #000000;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    transition: background-color 0.3s ease;
+}
+
+/* Style des icônes de thème */
+#zone-2c1 .theme-icon {
+    width: min(40%, 40px);
+    height: min(40%, 40px);
+    position: relative;
+}
+
+/* États du thème */
+.theme-light {
+    display: none;
+}
+
+/* Quand le mode clair est actif */
+body.light-mode #zone-2c1 .tool-circle {
+    background-color: #ffffff;
+}
+
+body.light-mode #zone-2c1 .theme-dark {
+    display: none;
+}
+
+body.light-mode #zone-2c1 .theme-light {
+    display: block;
+}
+
+/* Style spécifique pour les icônes de thème */
+#zone-2c1 .theme-icon {
+    width: min(40%, 40px);
+    height: min(40%, 40px);
+    position: relative;
+}
+
+/* Style spécifique pour l'icône de zoom */
+#zone-2a2 .zoom-icon {
+    width: min(40%, 40px);
+    height: min(40%, 40px);
+    position: relative;
+}
+
+/* Couleurs des boutons standards */
+#zone-3a1 .tool-circle,
+#zone-3a2 .tool-circle,
+#zone-3c1 .tool-circle,
+#zone-3c2 .tool-circle,
+#zone-2a2 .tool-circle,
+#zone-2c1 .tool-circle,
+#zone-2c2 .tool-circle {
+    background-color: var(--background-color);
+}
+
+/* La grille principale */
+.main-zone {
+    background-color: var(--grid-background);
+    transition: background-color 0.3s ease;
+}
+
+/* Bouton zoom et son icône */
+#zone-2a2 .tool-circle {
+    background-color: var(--background-color);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Curseur d'activité */
+.activity-box {
+    background-color: var(--background-color);
+    transition: background-color 0.3s ease;
+}
+
+/* Bouton reconnect et son texte */
+#reconnect-button {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Styles pour le mode clair */
+body.light-mode #reconnect-button {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+/* Curseur d'activité - conteneur et curseur */
+.activity-box {
+    background-color: var(--background-color);
+    transition: background-color 0.3s ease;
+}
+
+.activity-cursor {
+    background-color: var(--background-color);
+    transition: background-color 0.3s ease;
+}
+
+/* Bouton zoom - s'assurer que le sélecteur est assez spécifique */
+#zone-2a2 .tool-circle,
+.zoom-button {
+    background-color: var(--background-color) !important;  /* Utilisation temporaire de !important pour debug */
+    transition: background-color 0.3s ease;
+}
+
+/* Styles spécifiques pour le bouton zoom */
+#zone-2a2 .tool-circle {
+    background-color: var(--background-color) !important;  /* Force le style */
+}
+
+/* S'assurer que tous les éléments parents n'interfèrent pas */
+#zone-2a2,
+#zone-2a2 > *,
+#zone-2a2 .tool-circle {
+    background-color: var(--background-color) !important;
+}
+
+/* Ajouter la transition */
+#zone-2a2 .tool-circle {
+    transition: background-color 0.3s ease !important;
+}
+
+/* Bouton zoom - conteneur */
+#zone-2a1 .tool-circle {
+    background-color: var(--background-color);
+    position: relative;
+    z-index: 1;
+    transition: background-color 0.3s ease;
+}
+
+/* Icône de zoom */
+#zone-2a1 .zoom-icon {
+    width: min(40%, 40px);
+    height: min(40%, 40px);
+    position: relative;
+    z-index: 2;
+}
+
+/* Couleurs des chemins SVG */
+#zone-2a1 .zoom-icon path {
+    stroke: var(--text-color);
+    transition: stroke 0.3s ease;
+}
+
+/* États du zoom */
+body.disconnected #zone-2a1 .zoom-icon {
+    opacity: 0.3;
+}
+
+/* Forcer le style sur tous les niveaux */
+#zone-2a1,
+.zoom-button,
+#zone-2a1 div {
+    background-color: var(--background-color) !important;
+}
+
+/* Debug - afficher la structure */
+#zone-2a1 {
+    border: 1px solid red;  /* Temporaire pour debug */
+}
+
+#zone-2a1 .tool-circle {
+    border: 1px solid blue;  /* Temporaire pour debug */
+}
+
+/* Retirer les bordures de debug */
+#zone-2a1,
+#zone-2a1 .tool-circle {
+    border: none;  /* Supprime les bordures rouges et bleues */
+}
+
+/* Ajuster les bordures pour le mode clair */
+body.light-mode .main-zone {
+    border-left: 1px solid #cccccc;
+    border-right: 1px solid #cccccc;
+}
+
 @media (orientation: landscape) {
-    #main-container {
-        flex-direction: row;
-        align-items: center;
+    body.light-mode .activity-box {
+        border-top: 1px solid #cccccc;
+        border-bottom: 1px solid #cccccc;
     }
+}
 
-    .tools-zone {
-        flex-direction: column;
-        height: 100%;
-        width: auto; /* Laisse flex:1 gérer la largeur */
-    }
-
-    .sub-zone {
-        flex-direction: column;
-        height: 100%;
-    }
-
-    .main-zone {
-        height: min(100vh, 66.66vw);
-        width: min(100vh, 66.66vw);
+@media (orientation: portrait) {
+    body.light-mode .activity-box {
+        border-left: 1px solid #cccccc;
+        border-right: 1px solid #cccccc;
     }
 }

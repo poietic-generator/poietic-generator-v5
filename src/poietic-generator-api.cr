@@ -25,7 +25,7 @@ class Grid
   end
 
   def get_user_position(user_id : String)
-    @user_positions[user_id]
+    @user_positions[user_id]?  # Ajout du ? pour retourner nil si la clé n'existe pas
   end
 
   def to_json(json : JSON::Builder)
@@ -101,7 +101,7 @@ class Grid
     next_odd(2 * max_position + 1)
   end
 
-  private def next_odd(n)
+  private def next_odd(n : Int32) : Int32  # Ajout du type de retour explicite
     n.even? ? n + 1 : n
   end
 
@@ -118,20 +118,25 @@ class Grid
 end
 
 class Session
+  INACTIVITY_TIMEOUT = 3.minutes
+
   property users : Hash(String, HTTP::WebSocket)
   property grid : Grid
   property user_colors : Hash(String, String)
+  property last_activity : Hash(String, Time)
 
   def initialize
     @users = Hash(String, HTTP::WebSocket).new
     @grid = Grid.new
     @user_colors = Hash(String, String).new
+    @last_activity = Hash(String, Time).new
   end
 
   def add_user(socket : HTTP::WebSocket) : String
     user_id = UUID.random.to_s
     @users[user_id] = socket
     @user_colors[user_id] = generate_random_color
+    @last_activity[user_id] = Time.utc
     position = @grid.find_next_available_position
     @grid.set_user_position(user_id, position)
     send_initial_state(user_id)
@@ -148,9 +153,10 @@ class Session
   end
 
   def send_initial_state(user_id : String)
+    grid_size = calculate_grid_size  # Utiliser la même taille pour tous
     initial_state = {
       type: "initial_state",
-      grid_size: calculate_grid_size,
+      grid_size: grid_size,  # Utiliser la taille calculée dès le début
       grid_state: @grid.to_json,
       user_colors: @user_colors,
       sub_cell_states: serialize_sub_cell_states,
@@ -174,16 +180,18 @@ class Session
   end
 
   def calculate_grid_size
-    max_position = @grid.user_positions.values.map { |pos| [pos[0].abs, pos[1].abs].max }.max || 0
-    [3, (max_position * 2 + 1)].max
+    @grid.effective_size
   end
 
   def remove_user(user_id : String)
-    @grid.remove_user(user_id)
-    @users.delete(user_id)
-    @user_colors.delete(user_id)
-    broadcast_user_left(user_id)
-    broadcast_zoom_update
+    if position = @grid.get_user_position(user_id)
+      @grid.remove_user(user_id)
+      @users.delete(user_id)
+      @user_colors.delete(user_id)
+      @last_activity.delete(user_id)
+      broadcast_user_left(user_id, position)
+      broadcast_zoom_update
+    end
   end
 
   def broadcast_zoom_update
@@ -197,13 +205,13 @@ class Session
     broadcast(zoom_update_message)
   end
 
-  def broadcast_user_left(user_id : String)
-    user_left_message = {
+  def broadcast_user_left(user_id : String, position : Tuple(Int32, Int32))
+    message = {
       type: "user_left",
       user_id: user_id,
-      grid_state: @grid.to_json
+      position: position
     }.to_json
-    broadcast(user_left_message)
+    broadcast(message)
   end
 
   def broadcast(message)
@@ -279,6 +287,19 @@ class Session
     broadcast(zoom_update_message)
     send_to_observers(zoom_update_message)
   end
+
+  def update_user_activity(user_id : String)
+    @last_activity[user_id] = Time.utc
+  end
+
+  def check_inactivity
+    now = Time.utc
+    @last_activity.each do |user_id, last_active|
+      if now - last_active > INACTIVITY_TIMEOUT
+        remove_user(user_id)
+      end
+    end
+  end
 end
 
 module PoieticGenerator
@@ -293,6 +314,17 @@ get "/" do |env|
   send_file env, "public/index.html"
 end
 
+get "/css/:file" do |env|
+  file = env.params.url["file"]
+  send_file env, "public/css/#{file}", "text/css"
+end
+
+get "/js/:file" do |env|
+  file = env.params.url["file"]
+  send_file env, "public/js/#{file}", "application/javascript"
+end
+
+# Views spécifiques (à garder si nécessaire)
 get "/full" do |env|
   send_file env, "public/full.html"
 end
@@ -303,11 +335,6 @@ end
 
 get "/viewer" do |env|
   send_file env, "public/viewer.html"
-end
-
-get "/js/:file" do |env|
-  file = env.params.url["file"]
-  send_file env, "public/js/#{file}", "application/javascript"
 end
 
 ws "/updates" do |socket, context|
@@ -323,12 +350,15 @@ ws "/updates" do |socket, context|
   socket.on_message do |message|
     parsed_message = JSON.parse(message)
     if parsed_message["type"] == "cell_update" && !is_observer
+      PoieticGenerator.current_session.update_user_activity(user_id)
       PoieticGenerator.current_session.handle_cell_update(
         user_id,
         parsed_message["sub_x"].as_i,
         parsed_message["sub_y"].as_i,
         parsed_message["color"].as_s
       )
+    elsif parsed_message["type"] == "heartbeat"
+      PoieticGenerator.current_session.update_user_activity(user_id)
     end
   end
 
@@ -337,8 +367,16 @@ ws "/updates" do |socket, context|
   end
 end
 
-Kemal.config.port = 3000
+# Ajoutez cette tâche périodique pour vérifier l'inactivité
+spawn do
+  loop do
+    sleep 30.seconds
+    PoieticGenerator.current_session.check_inactivity
+  end
+end
+
+Kemal.config.port = 3001
 Kemal.run do |config|
   server = config.server.not_nil!
-  server.bind_tcp "0.0.0.0", 3000
+  server.bind_tcp "0.0.0.0", 3001
 end

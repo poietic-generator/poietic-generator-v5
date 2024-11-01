@@ -1,84 +1,118 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poietic Generator</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
-        #poietic-grid {
-            width: 100%;
-            height: 100%;
-            max-width: 100vmin;
-            max-height: 100vmin;
-            position: relative;
-        }
-        .user-cell {
-            position: absolute;
-            display: grid;
-            grid-template-columns: repeat(20, 1fr);
-            grid-template-rows: repeat(20, 1fr);
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        .user-cell.highlighted::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border: 4px solid rgba(255, 255, 255, 0.8);
-            pointer-events: none;
-            z-index: 1000;
-        }
-        .sub-cell {
-            width: 100%;
-            height: 100%;
-        }
-        #color-palette {
-            position: fixed;
-            z-index: 1000;
-        }
-        #color-preview {
-            width: 200px;
-            height: 200px;
-            cursor: pointer;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        #gradient-palette {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 200px;
-            height: 200px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            cursor: crosshair;
-        }
-    </style>
+    <link rel="stylesheet" href="/css/poietic-styles.css">
 </head>
 <body>
-    <div id="poietic-grid"></div>
+    <div id="main-container">
+        <!-- Technical Tools (Left/Top) -->
+        <div id="technical-tools" class="tools-zone">
+            <div id="zone-3a" class="sub-zone">
+                <div id="zone-3a1" class="split-zone">
+                    <div class="tool-circle">3a1</div>
+                </div>
+                <div id="zone-3a2" class="split-zone">
+                    <div class="tool-circle">3a2</div>
+                </div>
+            </div>
+            <div id="zone-3b" class="sub-zone">
+                <div class="connection-tools">
+                    <div class="activity-box">
+                        <div id="activity-cursor"></div>
+                    </div>
+                    <button id="reconnect-button" class="control-button">
+                        <span>RESET</span>
+                    </button>
+                </div>
+            </div>
+            <div id="zone-3c" class="sub-zone">
+                <div id="zone-3c1" class="split-zone">
+                    <div class="tool-circle">3c1</div>
+                </div>
+                <div id="zone-3c2" class="split-zone">
+                    <div class="tool-circle">3c2</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawing Area (Center) -->
+        <div class="main-zone">
+            <div id="poietic-grid"></div>
+            <div id="disconnect-overlay">
+                <div class="overlay-title">Poietic Generator</div>
+                <div class="overlay-subtitle">good net art since 1986</div>
+                <div class="overlay-message">TIME OUT</div>
+                <div class="overlay-footer">Copyleft, Free Art Licence</div>
+            </div>
+            <div id="welcome-overlay">
+                <div class="overlay-title">Poietic Generator</div>
+                <div class="overlay-subtitle">good net art since 1986</div>
+                <div class="overlay-message">WELCOME</div>
+                <div class="overlay-footer">Copyleft, Free Art Licence</div>
+            </div>
+        </div>
+
+        <!-- Graphical Tools (Right/Bottom) -->
+        <div id="graphical-tools" class="tools-zone">
+            <div id="zone-2a" class="sub-zone">
+                <div id="zone-2a1" class="split-zone">
+                    <div class="tool-circle">
+                        <svg viewBox="0 0 24 24" class="zoom-icon">
+                            <!-- État non zoomé -->
+                            <g class="zoom-normal">
+                                <path d="M12 4v16M4 12h16" stroke-width="2" stroke-linecap="round"/>
+                            </g>
+                            <!-- État zoomé (initialement caché) -->
+                            <g class="zoom-active" style="display: none">
+                                <path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke-width="2.04" stroke-linecap="round"/>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+                <div id="zone-2a2" class="split-zone">
+                    <div class="tool-circle">2a2</div>
+                </div>
+            </div>
+            <div id="zone-2b" class="sub-zone">
+                <div class="color-tools">
+                    <div id="color-palette">
+                        <div id="color-preview"></div>
+                        <canvas id="gradient-palette"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div id="zone-2c" class="sub-zone">
+                <div id="zone-2c1" class="split-zone">
+                    <div class="tool-circle">
+                        <!-- SVG pour le mode sombre (soleil) -->
+                        <svg class="theme-icon theme-dark" viewBox="0 0 24 24" width="24" height="24">
+                            <circle cx="12" cy="12" r="4" fill="white"/>
+                            <!-- 8 segments radiaux ajustés -->
+                            <line x1="12" y1="4" x2="12" y2="6" stroke="white" stroke-width="2"/>
+                            <line x1="12" y1="18" x2="12" y2="20" stroke="white" stroke-width="2"/>
+                            <line x1="4" y1="12" x2="6" y2="12" stroke="white" stroke-width="2"/>
+                            <line x1="18" y1="12" x2="20" y2="12" stroke="white" stroke-width="2"/>
+                            <!-- Diagonales ajustées -->
+                            <line x1="6" y1="6" x2="7.5" y2="7.5" stroke="white" stroke-width="2"/>
+                            <line x1="16.5" y1="16.5" x2="18" y2="18" stroke="white" stroke-width="2"/>
+                            <line x1="6" y1="18" x2="7.5" y2="16.5" stroke="white" stroke-width="2"/>
+                            <line x1="16.5" y1="7.5" x2="18" y2="6" stroke="white" stroke-width="2"/>
+                        </svg>
+                        <!-- SVG pour le mode clair (lune) -->
+                        <svg class="theme-icon theme-light" viewBox="0 0 24 24" width="24" height="24">
+                            <path d="M12 6 A 6 6 0 0 1 12 18 L 12 6" stroke="black" stroke-width="2" fill="black"/>
+                        </svg>
+                    </div>
+                </div>
+                <div id="zone-2c2" class="split-zone">
+                    <div class="tool-circle">2c2</div>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="/js/poietic-client.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof PoieticClient !== 'undefined') {
-                window.poieticClient = new PoieticClient();
-            } else {
-                console.error('PoieticClient is not defined. Make sure poietic-client.js is loaded correctly.');
-            }
-        });
-    </script>
 </body>
 </html>
