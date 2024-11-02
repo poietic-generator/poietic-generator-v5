@@ -10,67 +10,72 @@
             padding: 0;
             width: 100%;
             height: 100%;
+            background-color: #1a1a1a;
+            color: #ffffff;
             font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            overflow: hidden;
         }
-        .popup {
+        .control-panel {
+            padding: 20px;
+            display: flex;
+            gap: 10px;
             position: fixed;
-            background-color: white;
-            border: 1px solid #ccc;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            top: 0;
+            left: 0;
             z-index: 1000;
-            resize: both;
-            overflow: auto;
-            min-width: 200px;
-            min-height: 200px;
         }
-        .popup-header {
-            padding: 10px;
-            cursor: move;
-            background-color: #f1f1f1;
-            color: #000;
-            font-weight: bold;
-        }
-        .close-btn {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
+        .control-button {
+            padding: 10px 20px;
+            background-color: #333;
+            border: 1px solid #666;
+            color: white;
             cursor: pointer;
+            transition: background-color 0.3s;
         }
-        .close-btn:hover,
-        .close-btn:focus {
-            color: #000;
-            text-decoration: none;
-            cursor: pointer;
+        .control-button:hover {
+            background-color: #444;
         }
-        .popup-content {
-            padding: 10px;
-            width: 100%;
-            height: calc(100% - 40px);
-            box-sizing: border-box;
-        }
-        #grid-popup {
-            top: 50px;
-            left: 50px;
+        .dashboard-panel {
+            position: absolute;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
             width: 400px;
             height: 400px;
+            resize: both;
+            overflow: hidden;
         }
-        #color-profile-popup {
-            top: 50px;
-            right: 50px;
-            width: 300px;
-            height: 200px;
+        .panel-header {
+            padding: 8px;
+            background: #333;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        #poietic-grid {
+        .panel-title {
+            margin: 0;
+            font-size: 14px;
+        }
+        .panel-close {
+            cursor: pointer;
+            padding: 4px 8px;
+            border: none;
+            background: none;
+            color: #fff;
+        }
+        .panel-content {
+            padding: 10px;
+            height: calc(100% - 40px);
+            width: calc(100% - 20px);
+            overflow: hidden;
+        }
+        .panel-content.viewer-content {
+            padding: 0;
             width: 100%;
-            height: 100%;
-            position: relative;
+            height: calc(100% - 32px);
         }
-        #color-profile-canvas {
-            width: 100%;
-            height: 100%;
-        }
+        /* Styles pour la grille Poietic */
         .user-cell {
             position: absolute;
             display: grid;
@@ -79,48 +84,36 @@
             overflow: hidden;
             transition: all 0.3s ease;
         }
+
         .sub-cell {
             width: 100%;
             height: 100%;
+            background-color: transparent;
         }
-        #stats {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background-color: white;
-            padding: 20px;
-            border: 1px solid #ccc;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+
+        /* Ajustements spécifiques pour le panel viewer */
+        .viewer-content {
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .viewer-content > div {
+            position: relative;
+            aspect-ratio: 1;
+            max-width: 100%;
+            max-height: 100%;
         }
     </style>
 </head>
 <body>
-    <div id="grid-popup" class="popup">
-        <div class="popup-header">
-            <span>Dessin collectif</span>
-            <span class="close-btn">&times;</span>
-        </div>
-        <div class="popup-content">
-            <div id="poietic-grid"></div>
-        </div>
+    <div class="control-panel">
+        <button class="control-button" id="viewer-btn">Viewer</button>
+        <button class="control-button" id="chromatic-btn">Chromatic Analysis</button>
+        <button class="control-button" id="session-btn">Session Data</button>
     </div>
-
-    <div id="color-profile-popup" class="popup">
-        <div class="popup-header">
-            <span>Profil chromatique</span>
-            <span class="close-btn">&times;</span>
-        </div>
-        <div class="popup-content">
-            <canvas id="color-profile-canvas"></canvas>
-        </div>
-    </div>
-
-    <div id="stats">
-        <h2>Statistiques en temps réel</h2>
-        <div id="stats-content"></div>
-    </div>
-
-    <script src="/js/poietic-client-monitoring.js"></script>
+    <div id="dashboard-container"></div>
+    <script src="/js/poietic-monitoring.js"></script>
 </body>
 </html>
-

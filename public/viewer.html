@@ -46,11 +46,37 @@
             width: 100%;
             height: 100%;
         }
+        #qr-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 3s ease, visibility 3s ease;
+        }
+        #qr-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        #qr-code {
+            width: 50%;
+            height: 50%;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body>
     <div id="poietic-grid"></div>
-    <script src="http://192.168.0.193:3000/js/poietic-viewer.js"></script>
+    <div id="qr-overlay">
+        <img id="qr-code" src="/images/qr-code.png" alt="QR Code">
+    </div>
+    <script src="http://localhost:3001/js/poietic-viewer.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof PoieticViewer !== 'undefined') {
