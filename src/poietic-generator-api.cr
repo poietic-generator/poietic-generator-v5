@@ -319,14 +319,10 @@ get "/css/:file" do |env|
   send_file env, "public/css/#{file}", "text/css"
 end
 
+# Route générique pour tous les fichiers JavaScript
 get "/js/:file" do |env|
   file = env.params.url["file"]
   send_file env, "public/js/#{file}", "application/javascript"
-end
-
-# Views spécifiques (à garder si nécessaire)
-get "/full" do |env|
-  send_file env, "public/full.html"
 end
 
 get "/monitoring" do |env|
@@ -337,13 +333,20 @@ get "/viewer" do |env|
   send_file env, "public/viewer.html"
 end
 
+get "/images/:file" do |env|
+  file = env.params.url["file"]
+  send_file env, "public/images/#{file}"
+end
+
 ws "/updates" do |socket, context|
   mode = context.request.query_params["mode"]?
   is_observer = mode == "full" || mode == "monitoring"
 
   user_id = if is_observer
+    puts "Adding observer with mode: #{mode}"
     PoieticGenerator.current_session.add_observer(socket)
   else
+    puts "Adding regular user"
     PoieticGenerator.current_session.add_user(socket)
   end
 
@@ -363,6 +366,7 @@ ws "/updates" do |socket, context|
   end
 
   socket.on_close do
+    puts "Socket closed for #{user_id}"
     PoieticGenerator.current_session.remove_user(user_id) unless is_observer
   end
 end
