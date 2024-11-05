@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Poietic Generator Simulator</title>
+    <style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .simulator-container {
+            display: grid;
+            grid-template-columns: auto 80px 1fr;
+            gap: 15px;
+            height: 180px;
+        }
+
+        .grid-panel {
+            width: 180px;
+            height: 180px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        #user-grid-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #user-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            width: 100%;
+            height: 100%;
+            gap: 0;
+            background: #000;
+        }
+
+        .grid-cell {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            aspect-ratio: 1;
+            padding: 0;
+            margin: 0;
+            border: none;
+        }
+
+        #toggle-button {
+            height: 40px;
+            background-color: #333;
+            border: 1px solid #666;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 0;
+        }
+
+        .info-panel {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 12px;
+            height: 156px; /* 180px - 2*padding */
+        }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            color: white;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .info-table td {
+            padding: 4px 6px;
+            border: 1px solid #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="simulator-container">
+        <div class="grid-panel">
+            <div id="user-grid-container">
+                <div id="user-grid"></div>
+            </div>
+        </div>
+        <button id="toggle-button">Stop</button>
+        <div class="info-panel">
+            <table class="info-table">
+                <tr><td>User ID</td><td id="user-id">-</td></tr>
+                <tr><td>Position (x,y)</td><td id="user-position">-</td></tr>
+                <tr><td>Spiral Order</td><td id="spiral-order">-</td></tr>
+                <tr><td>Update Rate</td><td>10% pixels / minute</td></tr>
+                <tr><td>Color Source</td><td>Neighbors or Self</td></tr>
+                <tr><td>Color Update</td><td>Every 2 minutes</td></tr>
+            </table>
+        </div>
+    </div>
+    <script src="/js/poietic-simulator.js"></script>
+</body>
+</html> 
