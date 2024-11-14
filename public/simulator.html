@@ -8,15 +8,19 @@
             background-color: #000000;
             color: #ffffff;
             margin: 0;
-            padding: 20px;
+            padding: 5px;
             font-family: Arial, sans-serif;
+            overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .simulator-container {
             display: grid;
             grid-template-columns: auto 80px 1fr;
-            gap: 15px;
-            height: 180px;
+            gap: 5px;
+            height: 190px;
+            max-width: 100%;
         }
 
         .grid-panel {
@@ -57,6 +61,13 @@
             border: none;
         }
 
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 80px;
+        }
+
         #toggle-button {
             height: 40px;
             background-color: #333;
@@ -67,12 +78,28 @@
             margin: 0;
         }
 
+        .algorithm-dropdown {
+            width: 100%;
+            padding: 5px;
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .algorithm-dropdown:focus {
+            outline: none;
+            border-color: #666;
+        }
+
         .info-panel {
             background: #2a2a2a;
             border: 1px solid #444;
             border-radius: 4px;
             padding: 12px;
-            height: 156px; /* 180px - 2*padding */
+            height: 156px;
+            overflow: hidden;
         }
 
         .info-table {
@@ -88,6 +115,33 @@
             padding: 4px 6px;
             border: 1px solid #444;
         }
+
+        .mini-button {
+            padding: 2px 6px;
+            margin-left: 5px;
+            background: #444;
+            border: 1px solid #666;
+            color: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .color-preview {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border: 1px solid #444;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .info-panel[id$="-panel"] {
+            display: none;
+        }
+
+        .info-panel.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -97,18 +151,78 @@
                 <div id="user-grid"></div>
             </div>
         </div>
-        <button id="toggle-button">Stop</button>
-        <div class="info-panel">
+        <div class="controls-panel">
+            <button id="toggle-button">Stop</button>
+            <select id="algorithm-select" class="algorithm-dropdown">
+                <option value="mimetism">Mimetism</option>
+                <option value="symmetry">Symmetry</option>
+            </select>
+        </div>
+        <div class="info-panel active" id="mimetism-panel">
             <table class="info-table">
                 <tr><td>User ID</td><td id="user-id">-</td></tr>
-                <tr><td>Position (x,y)</td><td id="user-position">-</td></tr>
-                <tr><td>Spiral Order</td><td id="spiral-order">-</td></tr>
-                <tr><td>Update Rate</td><td>10% pixels / minute</td></tr>
-                <tr><td>Color Source</td><td>Neighbors or Self</td></tr>
-                <tr><td>Color Update</td><td>Every 2 minutes</td></tr>
+                <tr><td>Position</td><td id="user-position">-</td></tr>
+                <tr><td>Neighbors</td><td id="neighbors-list">-</td></tr>
+                <tr>
+                    <td>Color Source</td>
+                    <td>
+                        <span id="color-source">-</span>
+                        <div class="color-preview" id="current-color"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Update Rate</td>
+                    <td>
+                        <span id="update-rate">10</span>% pixels / minute
+                        <button class="mini-button" id="rate-plus">+</button>
+                        <button class="mini-button" id="rate-minus">-</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Color Update</td>
+                    <td>
+                        Every <span id="color-interval">2</span> minutes
+                        <button class="mini-button" id="interval-plus">+</button>
+                        <button class="mini-button" id="interval-minus">-</button>
+                    </td>
+                </tr>
             </table>
+        </div>
+        <div id="symmetry-panel" class="info-panel">
+            <div class="info-line">
+                <span class="info-label">User ID:</span>
+                <span id="user-id">-</span>
+            </div>
+            <div class="info-line">
+                <span class="info-label">Position:</span>
+                <span id="user-position">-</span>
+            </div>
+            <div class="info-line">
+                <span class="info-label">Source user:</span>
+                <span id="color-source">-</span>
+            </div>
+            <div class="info-line">
+                <span class="info-label">Symmetry:</span>
+                <span id="symmetry-type">-</span>
+            </div>
+            <div class="info-line">
+                <span class="info-label">Update Rate:</span>
+                <span id="update-rate">10</span>% pixels / minute
+                <div class="button-group">
+                    <button id="rate-plus">+</button>
+                    <button id="rate-minus">-</button>
+                </div>
+            </div>
+            <div class="info-line">
+                <span class="info-label">User Update:</span>
+                Every <span id="color-interval">2</span> minutes
+                <div class="button-group">
+                    <button id="interval-plus">+</button>
+                    <button id="interval-minus">-</button>
+                </div>
+            </div>
         </div>
     </div>
     <script src="/js/poietic-simulator.js"></script>
 </body>
-</html> 
+</html>

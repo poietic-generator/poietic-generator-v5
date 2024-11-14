@@ -474,8 +474,8 @@ class PoieticClient {
             const subX = Math.floor((x - (myCellRect.left - gridRect.left)) / (myCellRect.width / 20));
             const subY = Math.floor((y - (myCellRect.top - gridRect.top)) / (myCellRect.height / 20));
 
-            this.updateSubCell(this.myUserId, subX, subY, this.currentColor);
             this.isLocalUpdate = true;
+            this.updateSubCell(this.myUserId, subX, subY, this.currentColor);
             this.updateLastActivity();
             this.sendCellUpdate(subX, subY, this.currentColor);
         }
@@ -790,4 +790,3 @@ class PoieticClient {
 document.addEventListener('DOMContentLoaded', () => {
     window.poieticClient = new PoieticClient();
 });
-

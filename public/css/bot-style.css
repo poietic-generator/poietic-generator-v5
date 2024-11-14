@@ -1,0 +1,73 @@
+.container {
+    display: flex;
+    padding: 20px;
+    background-color: #1a1a1a;
+    color: white;
+}
+
+.grid-container {
+    margin-right: 20px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(20, 15px);
+    grid-template-rows: repeat(20, 15px);
+    gap: 1px;
+    background-color: #333;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.grid-cell {
+    width: 15px;
+    height: 15px;
+    background-color: #000;
+}
+
+.info-panel {
+    display: none;
+    background-color: #333;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.info-panel.active {
+    display: block;
+}
+
+.info-line {
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+}
+
+.info-label {
+    width: 120px;
+    color: #888;
+}
+
+.button-group {
+    margin-left: 10px;
+}
+
+button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    margin: 0 2px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #555;
+}
+
+select {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 5px;
+    margin-left: 10px;
+}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype de Layout Poietic Generator</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        #main-container {
+            display: flex;
+            height: 100vh;
+        }
+        .zone {
+            display: flex;
+            flex-direction: column;
+        }
+        .sub-zone {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="main-container">
+        <div id="technical-tools" class="zone">
+            <div id="zone-3a" class="sub-zone">3a</div>
+            <div id="zone-3b" class="sub-zone">3b</div>
+            <div id="zone-3c" class="sub-zone">3c</div>
+        </div>
+        <div id="drawing-area" class="zone">
+            <div id="zone-1" class="sub-zone">1</div>
+        </div>
+        <div id="graphical-tools" class="zone">
+            <div id="zone-2a" class="sub-zone">2a</div>
+            <div id="zone-2b" class="sub-zone">2b</div>
+            <div id="zone-2c" class="sub-zone">2c</div>
+        </div>
+    </div>
+    <script src="layout_prototype.js"></script>
+</body>
+</html>

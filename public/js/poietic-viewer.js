@@ -1,11 +1,17 @@
 class PoieticViewer {
-    constructor() {
-        if (PoieticViewer.instance) {
-            return PoieticViewer.instance;
+    constructor(gridId = 'poietic-grid', isObserver = true) {
+        const instanceId = `${gridId}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        if (!window.poieticViewerInstances) {
+            window.poieticViewerInstances = {};
         }
-        PoieticViewer.instance = this;
+        window.poieticViewerInstances[instanceId] = this;
 
-        this.grid = document.getElementById('poietic-grid');
+        this.gridId = gridId;
+        this.isObserver = isObserver;
+        this.instanceId = instanceId;
+        
+        // Initialiser les structures de données
         this.cells = new Map();
         this.userPositions = new Map();
         this.userColors = new Map();
@@ -14,69 +20,154 @@ class PoieticViewer {
         this.subCellSize = 0;
         this.isConnected = false;
 
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.initialize());
+        } else {
+            this.initialize();
+        }
+    }
+
+    initialize() {
+        console.log(`Initializing viewer for grid: ${this.gridId}`);
+        this.grid = document.getElementById(this.gridId);
+        if (!this.grid) {
+            console.error(`Grid element with id ${this.gridId} not found`);
+            return;
+        }
+
+        this.overlay = document.getElementById('qr-overlay');
+        if (!this.overlay) {
+            console.error(`Overlay element not found for ${this.gridId}`);
+            return;
+        }
+
+        console.log(`Initializing viewer for ${this.gridId}...`);
+        this.resetViewerState();
         this.connect();
         this.addResizeListener();
     }
 
+    resetViewerState() {
+        console.log('Resetting viewer state');
+        if (this.socket) {
+            this.socket.close();
+            this.socket = null;
+        }
+        
+        if (this.grid) {
+            this.grid.innerHTML = '';
+        }
+        
+        this.cells.clear();
+        this.userPositions.clear();
+        this.userColors.clear();
+        this.gridSize = 1;
+        this.cellSize = 0;
+        this.subCellSize = 0;
+        this.isConnected = false;
+        
+        if (this.overlay) {
+            this.overlay.classList.add('visible');
+        }
+    }
+
     connect() {
-        if (this.isConnected) {
-            console.log('Already connected, skipping reconnection');
-            return;
-        }
+        if (this.isConnected) return;
 
-        this.socket = new WebSocket('ws://192.168.0.193:3000/updates?mode=full');
-        this.socket.onopen = () => {
-            console.log('WebSocket connection established');
-            this.isConnected = true;
-        };
-        this.socket.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            this.handleMessage(message);
-        };
-        this.socket.onclose = () => {
-            console.log('WebSocket connection closed');
-            this.isConnected = false;
-        };
-        this.socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
+        const mode = this.isObserver ? 'full' : '';
+        const url = `ws://localhost:3001/updates${mode ? '?mode=' + mode : ''}`;
+        console.log(`Attempting WebSocket connection to ${url}`);
+        
+        try {
+            this.socket = new WebSocket(url);
+            
+            this.socket.onopen = () => {
+                console.log(`WebSocket connection established in ${this.isObserver ? 'observer' : 'user'} mode`);
+                this.isConnected = true;
+            };
+
+            this.socket.onclose = (event) => {
+                console.log('WebSocket connection closed:', {
+                    code: event.code,
+                    reason: event.reason,
+                    wasClean: event.wasClean,
+                    timestamp: new Date().toISOString()
+                });
+                this.isConnected = false;
+                this.resetViewerState();
+                
+                setTimeout(() => {
+                    console.log('Attempting to reconnect...');
+                    this.connect();
+                }, 1000);
+            };
+
+            this.socket.onerror = (error) => {
+                console.error('WebSocket error:', {
+                    error: error,
+                    readyState: this.socket.readyState,
+                    timestamp: new Date().toISOString()
+                });
+            };
+
+            this.socket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log('Received message:', message.type);
+
+                    switch (message.type) {
+                        case 'initial_state':
+                            this.handleInitialState(message);
+                            break;
+                        case 'user_update':
+                            this.handleUserUpdate(message);
+                            break;
+                        case 'cell_update':
+                            this.handleCellUpdate(message);
+                            break;
+                        case 'user_left':
+                            this.handleUserLeft(message);
+                            break;
+                        case 'zoom_update':
+                            this.handleZoomUpdate(message);
+                            break;
+                        default:
+                            console.log('Unknown message type:', message.type);
+                    }
+                } catch (e) {
+                    console.error('Error processing message:', e, event.data);
+                }
+            };
+        } catch (e) {
+            console.error('Error creating WebSocket:', e);
+        }
     }
 
-    handleMessage(message) {
-        console.log('Received message:', message);
-        switch (message.type) {
-            case 'initial_state':
-                this.initializeState(message);
-                break;
-            case 'new_user':
-                this.addNewUser(message.user_id, message.position, message.color);
-                break;
-            case 'user_left':
-                this.removeUser(message.user_id);
-                break;
-            case 'cell_update':
-                this.updateSubCell(message.user_id, message.sub_x, message.sub_y, message.color);
-                break;
-            case 'zoom_update':
-                this.updateZoom(message.grid_size, message.grid_state, message.user_colors, message.sub_cell_states);
-                break;
-            default:
-                console.warn('Received unknown message type:', message.type);
+    handleInitialState(message) {
+        console.log('Processing initial state');
+        this.gridSize = message.grid_size;
+        
+        // Traiter le grid_state
+        if (message.grid_state) {
+            const gridState = typeof message.grid_state === 'string' ? 
+                JSON.parse(message.grid_state) : message.grid_state;
+            
+            // Mettre à jour les positions des utilisateurs
+            if (gridState.user_positions) {
+                Object.entries(gridState.user_positions).forEach(([userId, position]) => {
+                    this.updateCell(userId, position[0], position[1]);
+                });
+            }
         }
-    }
 
-    initializeState(state) {
-        console.log('Initializing state:', state);
-        this.gridSize = state.grid_size;
-        this.userColors = new Map(Object.entries(state.user_colors));
+        // Mettre à jour les couleurs des utilisateurs
+        if (message.user_colors) {
+            this.userColors = new Map(Object.entries(message.user_colors));
+        }
 
-        const gridState = JSON.parse(state.grid_state);
-        Object.entries(gridState.user_positions).forEach(([userId, position]) => {
-            this.updateCell(userId, position[0], position[1]);
-        });
-
-        if (state.sub_cell_states) {
-            Object.entries(state.sub_cell_states).forEach(([userId, subCells]) => {
+        // Mettre à jour les états des sous-cellules
+        if (message.sub_cell_states) {
+            Object.entries(message.sub_cell_states).forEach(([userId, subCells]) => {
                 Object.entries(subCells).forEach(([coords, color]) => {
                     const [subX, subY] = coords.split(',').map(Number);
                     this.updateSubCell(userId, subX, subY, color);
@@ -87,29 +178,66 @@ class PoieticViewer {
         this.updateGridSize();
     }
 
+    handleUserUpdate(message) {
+        if (message.user_positions) {
+            Object.entries(message.user_positions).forEach(([userId, position]) => {
+                this.updateCell(userId, position[0], position[1]);
+            });
+        }
+    }
+
+    handleCellUpdate(message) {
+        if (message.user_id && typeof message.sub_x === 'number' && 
+            typeof message.sub_y === 'number' && message.color) {
+            this.updateSubCell(message.user_id, message.sub_x, message.sub_y, message.color);
+        }
+    }
+
+    handleUserLeft(message) {
+        if (message.user_id) {
+            this.removeUser(message.user_id);
+        }
+    }
+
+    handleZoomUpdate(message) {
+        if (typeof message.grid_size === 'number') {
+            this.updateZoom(
+                message.grid_size,
+                message.grid_state,
+                message.user_colors,
+                message.sub_cell_states
+            );
+        }
+    }
+
     updateCell(userId, x, y) {
-        console.log(`Updating cell for user ${userId} at position (${x}, ${y})`);
+        console.log(`Creating/updating cell for user ${userId} at (${x}, ${y})`);
         let cell = this.cells.get(userId);
+        
         if (!cell) {
             cell = document.createElement('div');
             cell.className = 'user-cell';
+            
+            for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 20; x++) {
+                    const subCell = document.createElement('div');
+                    subCell.className = 'sub-cell';
+                    subCell.dataset.x = x.toString();
+                    subCell.dataset.y = y.toString();
+                    cell.appendChild(subCell);
+                }
+            }
+            
             this.grid.appendChild(cell);
             this.cells.set(userId, cell);
         }
 
-        cell.innerHTML = '';
-        for (let i = 0; i < 20; i++) {
-            for (let j = 0; j < 20; j++) {
-                const subCell = document.createElement('div');
-                subCell.className = 'sub-cell';
-                subCell.dataset.x = i;
-                subCell.dataset.y = j;
-                cell.appendChild(subCell);
-            }
-        }
-
         this.userPositions.set(userId, {x, y});
         this.positionCell(cell, x, y);
+        
+        if (this.overlay) {
+            this.overlay.classList.remove('visible');
+        }
     }
 
     positionCell(cell, x, y) {
@@ -123,18 +251,28 @@ class PoieticViewer {
     }
 
     updateSubCell(userId, subX, subY, color) {
+        console.log(`Updating subcell for user ${userId} at (${subX}, ${subY}) with color ${color}`);
         const cell = this.cells.get(userId);
         if (cell) {
-            const subCell = cell.children[subY * 20 + subX];
+            const subCell = cell.querySelector(`[data-x="${subX}"][data-y="${subY}"]`);
             if (subCell) {
                 subCell.style.backgroundColor = color;
+            } else {
+                console.warn(`SubCell not found at ${subX},${subY} for user ${userId}`);
             }
+        } else {
+            console.warn(`Cell not found for user ${userId}`);
         }
     }
 
     addNewUser(userId, position, color) {
+        console.log(`Adding new user ${userId} at position (${position[0]}, ${position[1]})`);
         this.userColors.set(userId, color);
         this.updateCell(userId, position[0], position[1]);
+        
+        if (this.overlay && this.cells.size > 0) {
+            this.overlay.classList.remove('visible');
+        }
     }
 
     removeUser(userId) {
@@ -142,9 +280,13 @@ class PoieticViewer {
         if (cell) {
             this.grid.removeChild(cell);
             this.cells.delete(userId);
+            this.userPositions.delete(userId);
+            this.userColors.delete(userId);
         }
-        this.userPositions.delete(userId);
-        this.userColors.delete(userId);
+
+        if (this.cells.size === 0 && this.overlay) {
+            this.overlay.classList.add('visible');
+        }
     }
 
     updateZoom(newGridSize, gridState, userColors, subCellStates) {
@@ -189,7 +331,8 @@ class PoieticViewer {
     }
 }
 
-// Initialisation du visualiseur
+// Initialisation pour viewer.html
 document.addEventListener('DOMContentLoaded', () => {
-    window.poieticViewer = new PoieticViewer();
+    console.log('DOM loaded, initializing default viewer');
+    new PoieticViewer('poietic-grid', true);  // Force le mode observer
 });

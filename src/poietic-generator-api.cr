@@ -259,13 +259,17 @@ class Session
   end
 
   def broadcast_user_left(user_id : String)
-    user_left_message = {
-      type: "user_left",
-      user_id: user_id,
-      grid_state: @grid.to_json
-    }.to_json
-    broadcast(user_left_message)
-    send_to_observers(user_left_message)
+    begin
+      @users.each do |id, socket|
+        next if socket.closed?  # Vérifier si le socket est fermé
+        socket.send({
+          type: "user_left",
+          user_id: user_id
+        }.to_json)
+      end
+    rescue ex
+      puts "Erreur lors de la diffusion du départ d'un utilisateur: #{ex.message}"
+    end
   end
 
   def serialize_sub_cell_states
@@ -325,6 +329,13 @@ get "/js/:file" do |env|
   send_file env, "public/js/#{file}", "application/javascript"
 end
 
+# Route pour les fichiers JS des bots
+get "/js/bots/:file" do |env|
+  file = env.params.url["file"]
+  env.response.content_type = "application/javascript"
+  send_file env, "public/js/bots/#{file}"
+end
+
 get "/monitoring" do |env|
   send_file env, "public/monitoring.html"
 end
@@ -336,6 +347,14 @@ end
 get "/images/:file" do |env|
   file = env.params.url["file"]
   send_file env, "public/images/#{file}"
+end
+
+get "/simulator" do |env|
+  send_file env, "public/simulator.html"
+end
+
+get "/bot" do |env|
+  send_file env, "public/bot.html"
 end
 
 ws "/updates" do |socket, context|
