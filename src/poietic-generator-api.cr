@@ -314,26 +314,41 @@ module PoieticGenerator
   end
 end
 
+# Ajouter avant les routes
+before_all do |env|
+  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+  env.response.headers["Pragma"] = "no-cache"
+  env.response.headers["Expires"] = "0"
+end
+
 get "/" do |env|
   send_file env, "public/index.html"
 end
 
 get "/css/:file" do |env|
   file = env.params.url["file"]
+  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+  env.response.headers["Pragma"] = "no-cache"
+  env.response.headers["Expires"] = "0"
   send_file env, "public/css/#{file}", "text/css"
 end
 
 # Route générique pour tous les fichiers JavaScript
 get "/js/:file" do |env|
   file = env.params.url["file"]
+  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+  env.response.headers["Pragma"] = "no-cache"
+  env.response.headers["Expires"] = "0"
   send_file env, "public/js/#{file}", "application/javascript"
 end
 
 # Route pour les fichiers JS des bots
 get "/js/bots/:file" do |env|
   file = env.params.url["file"]
-  env.response.content_type = "application/javascript"
-  send_file env, "public/js/bots/#{file}"
+  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+  env.response.headers["Pragma"] = "no-cache"
+  env.response.headers["Expires"] = "0"
+  send_file env, "public/js/bots/#{file}", "application/javascript"
 end
 
 get "/monitoring" do |env|

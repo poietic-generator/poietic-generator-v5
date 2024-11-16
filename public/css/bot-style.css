@@ -47,27 +47,26 @@
     color: #888;
 }
 
-.button-group {
-    margin-left: 10px;
+.bot-controls {
+    margin: 0 10px;
 }
 
-button {
-    background-color: #444;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    margin: 0 2px;
+#bot-selector {
+    width: 120px;
+    padding: 8px;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #fff;
     cursor: pointer;
 }
 
-button:hover {
-    background-color: #555;
+#bot-selector:hover {
+    border-color: #666;
 }
 
-select {
-    background-color: #444;
-    color: white;
-    border: none;
-    padding: 5px;
-    margin-left: 10px;
+#bot-selector option {
+    background: #2a2a2a;
+    color: #fff;
+    padding: 4px;
 }

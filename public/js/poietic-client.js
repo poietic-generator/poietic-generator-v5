@@ -36,15 +36,37 @@ class PoieticClient {
         this.reconnectTimeout = null;
         this.heartbeatInterval = null;
         this.inactivityTimer = null;
-        this.inactivityTimeout = 18 * 1000;  // 18 secondes au lieu de 3 * 60 * 1000
+        this.inactivityTimeout = 180 * 1000;  // 3 * 60 * 1000
         this.isLocalUpdate = false;
 
         // Propriétés de layout
         this.layoutOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
         this.gridScale = 1.0; // Pour le futur zoom        
 
+        // Propriétés de zoom
+        this.zoomState = {
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            isZoomed: false,
+            isAutoZoom: false,
+            lastActivityTime: Date.now()
+        };
+
+        // Référence à la zone de dessin
+        this.drawingArea = document.getElementById('poietic-grid');
+        
+        // Initialisation des gestionnaires d'événements de zoom
+        this.initZoomHandlers();
+
         // Initialisation
         this.initialize();
+
+        // Séparer les timers
+        this.connectionInactivityTimer = null;
+        this.zoomInactivityTimer = null;
+        this.connectionInactivityTimeout = 180 * 1000;  // 3 minutes
+        this.zoomInactivityTimeout = 4000;  // 4 secondes
     }
 
     initialize() {
@@ -139,7 +161,6 @@ class PoieticClient {
             console.log('Connexion WebSocket établie');
             this.isConnected = true;
             this.startHeartbeat();
-            this.resetInactivityTimer();  // Garder celui-ci
         };
         this.socket.onmessage = (event) => {
             const message = JSON.parse(event.data);
@@ -180,6 +201,7 @@ class PoieticClient {
         switch (message.type) {
             case 'initial_state':
                 this.initializeState(message);
+                this.resetInactivityTimer();
                 break;
             case 'new_user':
                 this.addNewUser(message.user_id, message.position, message.color);
@@ -589,8 +611,8 @@ class PoieticClient {
 
         const activityTime = this.disconnectedAt || this.lastActivity;
         const inactiveTime = (Date.now() - activityTime) / 1000;
-        const remainingTime = Math.max(18 - inactiveTime, 0);
-        const heightPercentage = (remainingTime / 18) * 100;
+        const remainingTime = Math.max(180 - inactiveTime, 0);
+        const heightPercentage = (remainingTime / 180) * 100;
 
         this.activityCursor.style.height = `${heightPercentage}%`;
 
@@ -613,7 +635,10 @@ class PoieticClient {
 
     resetInactivityTimer() {
         clearTimeout(this.inactivityTimer);
-        this.inactivityTimer = setTimeout(() => this.handleInactivityTimeout(), this.inactivityTimeout);
+        this.inactivityTimer = setTimeout(
+            () => this.handleInactivityTimeout(), 
+            this.inactivityTimeout
+        );
     }
 
     handleInactivityTimeout() {
@@ -703,7 +728,7 @@ class PoieticClient {
     updateHighlight() {
         const myCell = this.cells.get(this.myUserId);
         if (myCell) {
-            if (this.isOverGrid && !this.isOverOwnCell) {
+            if (this.isOverGrid && !this.isOverOwnCell && !this.zoomState.isAutoZoom) {
                 myCell.classList.add('highlighted');
             } else {
                 myCell.classList.remove('highlighted');
@@ -782,6 +807,221 @@ class PoieticClient {
             themeButton.addEventListener('click', () => {
                 document.body.classList.toggle('light-mode');
             });
+        }
+    }
+
+    initZoomHandlers() {
+        // Bouton de zoom automatique
+        const zoomButton = document.querySelector('#zone-2a1 .tool-circle');
+        
+        // Ajout des événements de survol
+        zoomButton.addEventListener('mouseenter', () => {
+            this.highlightUserCell(true);
+        });
+        
+        zoomButton.addEventListener('mouseleave', () => {
+            if (!this.zoomState.isAutoZoom) {
+                this.highlightUserCell(false);
+            }
+        });
+
+        zoomButton.addEventListener('click', () => this.toggleAutoZoom());
+
+        // Zoom manuel (molette)
+        this.drawingArea.addEventListener('wheel', (e) => {
+            if (!this.zoomState.isAutoZoom) {
+                this.handleManualZoom(e);
+            }
+        });
+
+        // Gestion du drag en mode zoom manuel
+        this.drawingArea.addEventListener('mousedown', (e) => this.startDrag(e));
+        document.addEventListener('mousemove', (e) => this.handleDrag(e));
+        document.addEventListener('mouseup', () => this.endDrag());
+    }
+
+    toggleAutoZoom() {
+        if (this.zoomState.isAutoZoom) {
+            // Désactiver le zoom auto
+            this.resetZoom();
+            // Garder la surbrillance pendant 1 seconde après la fin du zoom
+            setTimeout(() => {
+                this.highlightUserCell(false);
+            }, 1000);
+        } else {
+            // Activer le zoom auto et la surbrillance
+            this.zoomState.isAutoZoom = true;
+            this.highlightUserCell(true);
+            this.zoomToUserAndNeighbors();
+        }
+        this.updateZoomVisuals();
+    }
+
+    zoomToUserAndNeighbors() {
+        if (!this.myUserId || !this.userPositions.has(this.myUserId)) return;
+
+        const rect = this.drawingArea.getBoundingClientRect();
+        const myPosition = this.userPositions.get(this.myUserId);
+
+        // Calculer l'échelle pour voir la cellule utilisateur et la moitié des voisins
+        const targetScale = rect.width / (this.cellSize * 2); // 2 au lieu de 3 pour voir la moitié des voisins
+        const newScale = Math.min(targetScale, this.getMaxZoom());
+
+        // Position du centre de la viewport
+        const viewportCenterX = rect.width / 2;
+        const viewportCenterY = rect.height / 2;
+
+        // Position de la cellule de l'utilisateur dans l'espace non zoomé
+        const userX = (myPosition.x + this.gridSize/2) * this.cellSize;
+        const userY = (myPosition.y + this.gridSize/2) * this.cellSize;
+
+        // Calculer les offsets pour centrer la cellule de l'utilisateur
+        this.zoomState.offsetX = viewportCenterX - (userX * newScale);
+        this.zoomState.offsetY = viewportCenterY - (userY * newScale);
+        this.zoomState.scale = newScale;
+        this.zoomState.isZoomed = true;
+        this.zoomState.isAutoZoom = true;
+
+        this.updateZoomVisuals();
+        this.startZoomInactivityTimer();
+    }
+
+    resetZoom(animate = true) {
+        const duration = animate ? 500 : 0;
+        
+        this.zoomState.isAutoZoom = false;
+        this.zoomState.scale = 1;
+        this.zoomState.offsetX = 0;
+        this.zoomState.offsetY = 0;
+        this.zoomState.isZoomed = false;
+
+        if (animate) {
+            this.drawingArea.style.transition = `transform ${duration}ms ease-out`;
+            requestAnimationFrame(() => {
+                this.updateZoomVisuals();
+                setTimeout(() => {
+                    this.drawingArea.style.transition = '';
+                }, duration);
+            });
+        } else {
+            this.updateZoomVisuals();
+        }
+    }
+
+    // Mise à jour de updateZoomVisuals pour gérer correctement l'état du bouton SVG
+    updateZoomVisuals() {
+        const transform = `scale(${this.zoomState.scale}) translate(${this.zoomState.offsetX / this.zoomState.scale}px, ${this.zoomState.offsetY / this.zoomState.scale}px)`;
+        this.drawingArea.style.transformOrigin = '0 0';
+        this.drawingArea.style.transform = transform;
+
+        // Mise à jour de l'état visuel du bouton
+        const zoomButton = document.querySelector('#zone-2a1');
+        if (zoomButton) {
+            if (this.zoomState.isAutoZoom || this.zoomState.isZoomed) {
+                zoomButton.setAttribute('data-state', 'zoomed');
+            } else {
+                zoomButton.setAttribute('data-state', 'normal');
+            }
+        }
+    }
+
+    handleManualZoom(e) {
+        e.preventDefault();
+        
+        // Mise à jour du timestamp d'activité
+        this.zoomState.lastActivityTime = Date.now();
+
+        // Calcul du facteur de zoom basé sur la molette
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = Math.min(Math.max(this.zoomState.scale * zoomFactor, 1), this.getMaxZoom());
+
+        if (newScale !== this.zoomState.scale) {
+            const rect = this.drawingArea.getBoundingClientRect();
+            
+            // Position de la souris dans l'espace transformé actuel
+            const transformedX = (e.clientX - rect.left) / this.zoomState.scale;
+            const transformedY = (e.clientY - rect.top) / this.zoomState.scale;
+
+            // Calcul des nouveaux offsets
+            const dx = transformedX * (newScale - this.zoomState.scale);
+            const dy = transformedY * (newScale - this.zoomState.scale);
+
+            this.zoomState.offsetX -= dx;
+            this.zoomState.offsetY -= dy;
+            this.zoomState.scale = newScale;
+            this.zoomState.isZoomed = newScale > 1;
+            
+            this.updateZoomVisuals();
+        }
+
+        this.startZoomInactivityTimer();
+    }
+
+    startDrag(e) {
+        if (!this.zoomState.isZoomed) return;
+
+        this.dragState = {
+            isDragging: true,
+            startX: e.clientX - this.zoomState.offsetX,
+            startY: e.clientY - this.zoomState.offsetY
+        };
+        
+        this.drawingArea.style.cursor = 'grabbing';
+    }
+
+    handleDrag(e) {
+        if (!this.dragState?.isDragging) return;
+
+        // Mise à jour du timestamp d'activité
+        this.zoomState.lastActivityTime = Date.now();
+
+        // Calcul du nouveau déplacement
+        this.zoomState.offsetX = e.clientX - this.dragState.startX;
+        this.zoomState.offsetY = e.clientY - this.dragState.startY;
+        
+        this.updateZoomVisuals();
+        this.startZoomInactivityTimer();
+    }
+
+    endDrag() {
+        if (this.dragState?.isDragging) {
+            this.dragState.isDragging = false;
+            this.drawingArea.style.cursor = '';
+            this.startZoomInactivityTimer();
+        }
+    }
+
+    startZoomInactivityTimer() {
+        if (this.zoomInactivityTimer) {
+            clearTimeout(this.zoomInactivityTimer);
+        }
+
+        this.zoomInactivityTimer = setTimeout(() => {
+            if (Date.now() - this.zoomState.lastActivityTime >= this.zoomInactivityTimeout) {
+                this.resetZoom();
+            }
+        }, this.zoomInactivityTimeout);
+    }
+
+    getMaxZoom() {
+        // Le zoom maximum est calculé pour afficher une cellule utilisateur en plein écran
+        const gridSize = this.gridSize;
+        const cellSize = this.drawingArea.clientWidth / gridSize;
+        return this.drawingArea.clientWidth / cellSize;
+    }
+
+    // Nouvelle méthode pour gérer la surbrillance de la cellule utilisateur
+    highlightUserCell(highlight) {
+        const myCell = this.cells.get(this.myUserId);
+        if (myCell) {
+            if (highlight) {
+                myCell.classList.add('highlighted');
+            } else {
+                // Ne pas retirer la surbrillance si on est toujours en mode zoom auto
+                if (!this.zoomState.isAutoZoom) {
+                    myCell.classList.remove('highlighted');
+                }
+            }
         }
     }
 }

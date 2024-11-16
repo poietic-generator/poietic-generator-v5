@@ -1,5 +1,6 @@
 window.PoieticBots.SymmetryBot = class {
     constructor(parent) {
+        console.log('SymmetryBot: Constructor started');
         this.parent = parent;
         this.updateRate = 10;
         this.userInterval = 2;
@@ -7,110 +8,209 @@ window.PoieticBots.SymmetryBot = class {
         this.symmetrySource = null;
         this.symmetryType = 'translation';
         this.symmetryTypes = ['translation', 'Y mirror', 'X mirror'];
+        this.initialized = false;
         
-        // Intervalles
         this.updateInterval = null;
         this.sourceUpdateInterval = null;
 
         this.initializeControls();
         this.updateInterface();
-        this.startIntervals();
+        
+        setTimeout(() => {
+            this.initialized = true;
+            this.startIntervals();
+        }, 0);
+        
+        console.log('SymmetryBot: Constructor completed');
+    }
+
+    initialize() {
+        console.log('SymmetryBot: Initializing...');
+        console.log('Parent positions:', this.parent.userPositions);
+        console.log('My ID:', this.parent.myUserId);
+        
+        if (this.chooseSymmetrySource()) {
+            console.log('SymmetryBot: Source selected, starting intervals');
+            this.startIntervals();
+            this.updateInterface();
+            this.initialized = true;
+        } else {
+            console.log('SymmetryBot: No source available, retrying in 1s');
+            setTimeout(() => this.initialize(), 1000);
+        }
+    }
+
+    handleMessage(message) {
+        if (!this.initialized || !this.symmetrySource) {
+            console.log('SymmetryBot: Not ready', {
+                initialized: this.initialized,
+                source: this.symmetrySource
+            });
+            return;
+        }
+
+        if (message.type === 'cell_update') {
+            if (!this.symmetrySource || !this.parent.userPositions.has(this.symmetrySource)) {
+                console.log('SymmetryBot: Invalid source, choosing new one');
+                this.chooseSymmetrySource();
+                return;
+            }
+            
+            if (message.user_id === this.symmetrySource) {
+                try {
+                    const sourcePos = this.parent.userPositions.get(this.symmetrySource);
+                    const myPos = this.parent.userPosition;
+                    
+                    console.log('SymmetryBot: Processing cell update', {
+                        sourcePos,
+                        myPos,
+                        message,
+                        type: this.symmetryType
+                    });
+
+                    if (!sourcePos || !myPos || 
+                        typeof sourcePos.x !== 'number' || 
+                        typeof sourcePos.y !== 'number' || 
+                        typeof myPos.x !== 'number' || 
+                        typeof myPos.y !== 'number') {
+                        console.log('SymmetryBot: Invalid positions', {
+                            sourcePos,
+                            myPos
+                        });
+                        return;
+                    }
+
+                    let targetX = message.sub_x;
+                    let targetY = message.sub_y;
+
+                    const result = this.applySymmetry(targetX, targetY);
+                    targetX = result.x;
+                    targetY = result.y;
+
+                    console.log('SymmetryBot: Drawing at', {
+                        original: {x: message.sub_x, y: message.sub_y},
+                        target: {x: targetX, y: targetY},
+                        color: message.color
+                    });
+
+                    this.parent.updateCell(targetX, targetY, message.color);
+                    
+                    const updateMessage = {
+                        type: 'cell_update',
+                        sub_x: targetX,
+                        sub_y: targetY,
+                        color: message.color
+                    };
+
+                    if (this.parent.socket?.readyState === WebSocket.OPEN) {
+                        this.parent.socket.send(JSON.stringify(updateMessage));
+                    }
+
+                } catch (error) {
+                    console.error('SymmetryBot: Error in handleMessage', error);
+                }
+            }
+        }
+    }
+
+    startIntervals() {
+        if (this.sourceUpdateInterval) {
+            clearInterval(this.sourceUpdateInterval);
+        }
+
+        this.sourceUpdateInterval = setInterval(() => {
+            console.log('SymmetryBot: Periodic update starting');
+            const availableUsers = Array.from(this.parent.userPositions.keys())
+                .filter(id => id !== this.parent.myUserId);
+            
+            if (availableUsers.length > 0) {
+                const oldSource = this.symmetrySource;
+                const oldType = this.symmetryType;
+
+                this.symmetrySource = availableUsers[
+                    Math.floor(Math.random() * availableUsers.length)
+                ];
+                
+                this.symmetryType = this.symmetryTypes[
+                    Math.floor(Math.random() * this.symmetryTypes.length)
+                ];
+                
+                console.log('SymmetryBot: Source/Type changed:', {
+                    oldSource,
+                    newSource: this.symmetrySource,
+                    oldType,
+                    newType: this.symmetryType
+                });
+                
+                this.updateInterface();
+            }
+        }, this.USER_UPDATE_INTERVAL);
     }
 
     cleanup() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-        }
         if (this.sourceUpdateInterval) {
             clearInterval(this.sourceUpdateInterval);
             this.sourceUpdateInterval = null;
         }
 
-        // Réinitialiser les valeurs
         this.symmetrySource = null;
-        this.symmetryType = 'translation';
-        
-        // Mettre à jour l'interface
         this.updateInterface();
     }
 
-    startIntervals() {
-        // Choisir une source initiale
-        this.chooseSymmetrySource();
-        
-        // Intervalle pour le changement de source et type de symétrie
-        this.sourceUpdateInterval = setInterval(() => {
-            this.chooseSymmetrySource();
-        }, this.USER_UPDATE_INTERVAL);
-
-        // Intervalle pour le dessin
-        this.startDrawing();
+    onNewUser(message) {
+        if (message.user_id === this.parent.myUserId) return;
+    
+        if (!this.symmetrySource) {
+            this.symmetrySource = message.user_id;
+            this.symmetryType = this.symmetryTypes[
+                Math.floor(Math.random() * this.symmetryTypes.length)
+            ];
+            this.initialized = true;
+        }
+        this.updateInterface();
     }
-
-    startDrawing() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-        }
-
-        // Si le taux est 0%, arrêter le dessin
-        if (this.updateRate === 0) {
-            this.updateInterval = null;
-            return;
-        }
-
-        const baseInterval = 1000;
-        const pixelsPerMinute = (400 * this.updateRate) / 100;
-        const pixelsPerSecond = pixelsPerMinute / 60;
-        const newInterval = Math.max(baseInterval / pixelsPerSecond, 50);
-
-        console.log('Starting drawing with interval:', newInterval);
-        console.log('Current source:', this.symmetrySource);
-
-        this.updateInterval = setInterval(() => {
-            if (!this.symmetrySource) {
-                console.log('No source selected, skipping draw');
-                return;
+    
+    onUserLeft(message) {
+        if (message.user_id === this.symmetrySource) {
+            const availableUsers = Array.from(this.parent.userPositions.keys())
+                .filter(id => id !== this.parent.myUserId);
+    
+            if (availableUsers.length > 0) {
+                this.symmetrySource = availableUsers[
+                    Math.floor(Math.random() * availableUsers.length)
+                ];
+                this.symmetryType = this.symmetryTypes[
+                    Math.floor(Math.random() * this.symmetryTypes.length)
+                ];
+            } else {
+                this.symmetrySource = null;
+                this.initialized = false;
             }
-
-            const sourceX = Math.floor(Math.random() * 20);
-            const sourceY = Math.floor(Math.random() * 20);
-            const {x, y} = this.applySymmetry(sourceX, sourceY);
-            
-            // Obtenir la couleur de la source
-            const sourceColor = this.getSourceColor(sourceX, sourceY);
-            console.log('Drawing:', {sourceX, sourceY, x, y, sourceColor});
-            
-            if (sourceColor) {
-                this.parent.updateCell(x, y, sourceColor);
-                if (this.parent.socket && this.parent.socket.readyState === WebSocket.OPEN) {
-                    this.parent.socket.send(JSON.stringify({
-                        type: 'cell_update',
-                        sub_x: x,
-                        sub_y: y,
-                        color: sourceColor
-                    }));
-                }
-            }
-        }, newInterval);
+            this.updateInterface();
+        }
     }
-
-    getSourceColor(x, y) {
-        if (!this.symmetrySource || !this.parent.sub_cell_states) {
-            console.log('No source or cell states available');
-            return null;
+    
+    onUserUpdate(message) {
+        if (!this.symmetrySource) {
+            const availableUsers = Array.from(this.parent.userPositions.keys())
+                .filter(id => id !== this.parent.myUserId);
+    
+            if (availableUsers.length > 0) {
+                this.symmetrySource = availableUsers[
+                    Math.floor(Math.random() * availableUsers.length)
+                ];
+                this.symmetryType = this.symmetryTypes[
+                    Math.floor(Math.random() * this.symmetryTypes.length)
+                ];
+                this.initialized = true;
+            }
         }
-        
-        const sourceStates = this.parent.sub_cell_states[this.symmetrySource];
-        if (!sourceStates) {
-            console.log('No states for source:', this.symmetrySource);
-            return null;
+    
+        if (this.symmetrySource && !this.parent.userPositions.has(this.symmetrySource)) {
+            this.onUserLeft({ user_id: this.symmetrySource });
         }
-        
-        const key = `${x},${y}`;
-        const color = sourceStates[key];
-        console.log('Getting color for', key, ':', color);
-        return color || '#000000';
+    
+        this.updateInterface();
     }
 
     initializeControls() {
@@ -120,7 +220,6 @@ window.PoieticBots.SymmetryBot = class {
             if (this.updateRate < 100) {
                 this.updateRate = Math.min(100, this.updateRate + 5);
                 panel.querySelector('#update-rate').textContent = this.updateRate;
-                this.startDrawing();
             }
         };
 
@@ -128,7 +227,6 @@ window.PoieticBots.SymmetryBot = class {
             if (this.updateRate > 0) {
                 this.updateRate = Math.max(0, this.updateRate - 5);
                 panel.querySelector('#update-rate').textContent = this.updateRate;
-                this.startDrawing();
             }
         };
 
@@ -151,45 +249,79 @@ window.PoieticBots.SymmetryBot = class {
 
     updateInterface() {
         const panel = document.querySelector('#symmetry-panel');
+        if (!panel) return;
+
+        // Position de l'utilisateur
         panel.querySelector('#user-position').textContent = this.parent.userPosition ? 
             `(${this.parent.userPosition.x}, ${this.parent.userPosition.y})` : '-';
-        panel.querySelector('#color-source').textContent = this.symmetrySource ? 
-            `User at (${this.parent.userPositions.get(this.symmetrySource).x}, ${this.parent.userPositions.get(this.symmetrySource).y})` : '-';
-        panel.querySelector('#symmetry-type').textContent = this.symmetryType;
-        panel.querySelector('#update-rate').textContent = this.updateRate;
-        panel.querySelector('#color-interval').textContent = this.userInterval;
+            
+        // Source de symétrie
+        const sourceElement = panel.querySelector('#color-source');
+        if (this.symmetrySource && this.parent.userPositions.has(this.symmetrySource)) {
+            const sourcePos = this.parent.userPositions.get(this.symmetrySource);
+            sourceElement.textContent = `User at (${sourcePos.x}, ${sourcePos.y})`;
+            // Ajouter l'ID pour le débogage
+            sourceElement.title = `ID: ${this.symmetrySource}`;
+        } else {
+            sourceElement.textContent = 'None (stopped)';
+            sourceElement.title = '';
+        }
+
+        // Type de symétrie
+        const typeElement = panel.querySelector('#symmetry-type');
+        if (typeElement) {
+            typeElement.textContent = this.symmetryType;
+        }
+
+        console.log('SymmetryBot: Interface updated', {
+            source: this.symmetrySource,
+            sourcePos: this.symmetrySource ? this.parent.userPositions.get(this.symmetrySource) : null,
+            type: this.symmetryType
+        });
     }
 
     chooseSymmetrySource() {
-        console.log('Choosing symmetry source from:', this.parent.userPositions);
+        console.log('SymmetryBot: Choosing source');
         const availableUsers = Array.from(this.parent.userPositions.keys())
             .filter(id => id !== this.parent.myUserId);
         
-        if (availableUsers.length === 0) {
-            console.log('No available users');
-            this.symmetrySource = null;
-            document.querySelector('#symmetry-panel #color-source').textContent = 'None (stopped)';
-            return false;
+        console.log('Available users:', availableUsers);
+        
+        if (availableUsers.length > 0) {
+            this.symmetrySource = availableUsers[
+                Math.floor(Math.random() * availableUsers.length)
+            ];
+            this.symmetryType = this.symmetryTypes[
+                Math.floor(Math.random() * this.symmetryTypes.length)
+            ];
+            console.log('SymmetryBot: Selected source:', this.symmetrySource);
+            console.log('SymmetryBot: Selected type:', this.symmetryType);
+            return true;
         }
+        return false;
+    }
 
-        this.symmetrySource = availableUsers[Math.floor(Math.random() * availableUsers.length)];
-        console.log('Selected source:', this.symmetrySource);
-        
-        const sourcePos = this.parent.userPositions.get(this.symmetrySource);
-        if (sourcePos) {
-            document.querySelector('#symmetry-panel #color-source').textContent = 
-                `User at (${sourcePos.x}, ${sourcePos.y})`;
-        }
-        
-        this.symmetryType = this.symmetryTypes[
-            Math.floor(Math.random() * this.symmetryTypes.length)
-        ];
-        document.querySelector('#symmetry-panel #symmetry-type').textContent = this.symmetryType;
-        
-        return true;
+    onInitialState(message) {
+        console.log('SymmetryBot: Received initial state:', message);
+        // Attendre que le parent ait traité l'état initial
+        setTimeout(() => {
+            console.log('SymmetryBot: Parent positions:', this.parent.userPositions);
+            console.log('SymmetryBot: My ID:', this.parent.myUserId);
+            
+            if (this.chooseSymmetrySource()) {
+                console.log('SymmetryBot: Source selected, starting intervals');
+                this.startIntervals();
+                this.updateInterface();
+            } else {
+                console.log('SymmetryBot: No source available');
+            }
+        }, 100);
     }
 
     applySymmetry(sourceX, sourceY) {
+        sourceX = Math.max(0, Math.min(19, Math.floor(sourceX)));
+        sourceY = Math.max(0, Math.min(19, Math.floor(sourceY)));
+
         switch(this.symmetryType) {
             case 'translation':
                 return { x: sourceX, y: sourceY };
@@ -199,19 +331,6 @@ window.PoieticBots.SymmetryBot = class {
                 return { x: sourceX, y: 19 - sourceY };
             default:
                 return { x: sourceX, y: sourceY };
-        }
-    }
-
-    onInitialState(message) {
-        this.updateInterface();
-        this.chooseSymmetrySource();
-    }
-
-    onUserUpdate(message) {
-        if (message.user_positions) {
-            this.parent.userPositions = new Map(Object.entries(message.user_positions)
-                .map(([id, pos]) => [id, {x: pos[0], y: pos[1]}]));
-            this.chooseSymmetrySource();
         }
     }
 }

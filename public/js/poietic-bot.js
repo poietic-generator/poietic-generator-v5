@@ -22,6 +22,7 @@ class PoieticBot {
 
         // Définir les types de bots disponibles
         this.bots = {
+            'random-self': window.PoieticBots.RandomSelfBot,
             mimetism: window.PoieticBots.MimetismBot,
             symmetry: window.PoieticBots.SymmetryBot,
             borderline: window.PoieticBots.BorderlineBot
@@ -64,49 +65,16 @@ class PoieticBot {
     initializeBotControls() {
         console.log('Initializing bot controls...');
         
-        const mimetismButton = document.getElementById('mimetism-button');
-        const symmetryButton = document.getElementById('symmetry-button');
-        const borderlineButton = document.getElementById('borderline-button');
-
-        console.log('Buttons found:', {
-            mimetism: !!mimetismButton,
-            symmetry: !!symmetryButton,
-            borderline: !!borderlineButton
-        });
-
-        if (!borderlineButton) {
-            console.error('Borderline button not found in DOM');
+        const botSelector = document.getElementById('bot-selector');
+        if (!botSelector) {
+            console.error('Bot selector not found in DOM');
             return;
         }
 
-        mimetismButton.onclick = () => {
-            if (this.currentBot instanceof window.PoieticBots.MimetismBot) return;
-            this.startBot('mimetism');
-            mimetismButton.classList.add('active');
-            symmetryButton.classList.remove('active');
-            borderlineButton.classList.remove('active');
-        };
-
-        symmetryButton.onclick = () => {
-            if (this.currentBot instanceof window.PoieticBots.SymmetryBot) return;
-            this.startBot('symmetry');
-            symmetryButton.classList.add('active');
-            mimetismButton.classList.remove('active');
-            borderlineButton.classList.remove('active');
-        };
-
-        borderlineButton.onclick = () => {
-            if (this.currentBot instanceof window.PoieticBots.BorderlineBot) return;
-            this.startBot('borderline');
-            borderlineButton.classList.add('active');
-            mimetismButton.classList.remove('active');
-            symmetryButton.classList.remove('active');
-        };
-
-        // S'assurer que les boutons sont initialement inactifs
-        mimetismButton.classList.remove('active');
-        symmetryButton.classList.remove('active');
-        borderlineButton.classList.remove('active');
+        botSelector.addEventListener('change', (event) => {
+            const selectedBot = event.target.value;
+            this.startBot(selectedBot);
+        });
     }
 
     startBot(botType) {
@@ -123,23 +91,33 @@ class PoieticBot {
 
         // Créer et démarrer le nouveau bot
         switch(botType) {
+            case 'random-self':
+                this.currentBot = new window.PoieticBots.RandomSelfBot(this);
+                document.getElementById('random-self-panel').classList.add('active');
+                document.getElementById('mimetism-panel').classList.remove('active');
+                document.getElementById('symmetry-panel').classList.remove('active');
+                document.getElementById('borderline-panel').classList.remove('active');
+                break;
             case 'mimetism':
                 this.currentBot = new window.PoieticBots.MimetismBot(this);
                 document.getElementById('mimetism-panel').classList.add('active');
                 document.getElementById('symmetry-panel').classList.remove('active');
                 document.getElementById('borderline-panel').classList.remove('active');
+                document.getElementById('random-self-panel').classList.remove('active');
                 break;
             case 'symmetry':
                 this.currentBot = new window.PoieticBots.SymmetryBot(this);
                 document.getElementById('symmetry-panel').classList.add('active');
                 document.getElementById('mimetism-panel').classList.remove('active');
                 document.getElementById('borderline-panel').classList.remove('active');
+                document.getElementById('random-self-panel').classList.remove('active');
                 break;
             case 'borderline':
                 this.currentBot = new window.PoieticBots.BorderlineBot(this);
                 document.getElementById('borderline-panel').classList.add('active');
                 document.getElementById('mimetism-panel').classList.remove('active');
                 document.getElementById('symmetry-panel').classList.remove('active');
+                document.getElementById('random-self-panel').classList.remove('active');
                 break;
         }
 

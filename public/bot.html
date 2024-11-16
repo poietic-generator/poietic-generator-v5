@@ -2,7 +2,8 @@
 <html>
 <head>
     <title>Poietic Bot</title>
-    <link rel="stylesheet" href="css/bot-style.css">
+    <link rel="stylesheet" href="css/bot-style.css?v=dev">
+    <script src="/js/poietic-bot.js?v=dev"></script>
     <style>
         body {
             background-color: #000000;
@@ -140,9 +141,13 @@
         </div>
 
         <div class="bot-controls">
-            <button id="mimetism-button" class="bot-button">Mimetism</button>
-            <button id="symmetry-button" class="bot-button">Symmetry</button>
-            <button id="borderline-button" class="bot-button">Borderline</button>
+            <select id="bot-selector">
+                <option value="">-</option>
+                <option value="random-self">Random Self</option>
+                <option value="mimetism">Mimetism</option>
+                <option value="symmetry">Symmetry</option>
+                <option value="borderline">Borderline</option>
+            </select>
         </div>
 
         <div id="mimetism-panel" class="info-panel">
@@ -224,6 +229,34 @@
                 </tr>
             </table>
         </div>
+
+        <div id="random-self-panel" class="info-panel">
+            <table class="info-table">
+                <tr><td>Current Behavior</td><td id="current-behavior">-</td></tr>
+                <tr>
+                    <td>Current Color</td>
+                    <td>
+                        <div class="color-preview" id="current-color"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Update Rate</td>
+                    <td>
+                        <span id="update-rate">10</span>% pixels / minute
+                        <button class="mini-button" id="rate-plus">+</button>
+                        <button class="mini-button" id="rate-minus">-</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Behavior Update</td>
+                    <td>
+                        Every <span id="behavior-interval">2</span> minutes
+                        <button class="mini-button" id="interval-plus">+</button>
+                        <button class="mini-button" id="interval-minus">-</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -233,5 +266,6 @@
     <script src="js/bots/symmetry-bot.js"></script>
     <script src="js/bots/borderline-bot.js"></script>
     <script src="js/poietic-bot.js"></script>
+    <script src="js/bots/random-self-bot.js"></script>
 </body>
 </html>
