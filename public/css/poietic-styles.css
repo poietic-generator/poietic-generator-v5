@@ -319,21 +319,6 @@ body.disconnected #disconnect-overlay {
     z-index: 1500;
 }
 
-/* Style du bouton de zoom - aussi en blanc */
-#zone-2a1 .tool-circle { 
-    background-color: #000000;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-}
-
-/* Style de l'icône SVG */
-#zone-2a1 .zoom-icon {
-    width: min(40%, 40px);
-    height: min(40%, 40px);
-    position: relative;
-}
-
 /* États du zoom - ajustement pour la visibilité */
 body.disconnected #zone-2a1 .zoom-normal,
 body.disconnected #zone-2a1 .zoom-active {
@@ -347,117 +332,6 @@ body.disconnected #zone-2a1 .zoom-active {
 
 #zone-2a1.zoomed .zoom-active {
     display: block !important;
-}
-
-/* Media queries */
-@media (orientation: landscape) {
-    #main-container {
-        flex-direction: row;
-        justify-content: center;
-    }
-
-    .tools-zone {
-        flex-direction: column;
-        width: max(0px, calc((100vw - min(100vh, 66.66vw)) / 2));
-        min-width: 0;
-    }
-
-    #zone-3b, #zone-2b {
-        height: calc(100vh / 3);
-        width: 100%;
-        min-height: 0;
-    }
-
-    .sub-zone {
-        flex-direction: row;
-        height: calc(100vh / 3);
-        min-height: 0;
-    }
-
-    .split-zone {
-        width: 50%;
-        height: 100%;
-    }
-
-    .tool-circle {
-        width: 100%;
-        height: 100%;
-        min-height: 0;
-    }
-
-    .main-zone {
-        height: min(100vh, 66.66vw);
-        width: min(100vh, 66.66vw);
-        flex: 0 0 auto;
-        border-left: 1px solid #333;
-        border-right: 1px solid #333;
-    }
-
-    .activity-box {
-        border-top: 1px solid #333;
-        border-bottom: 1px solid #333;
-    }
-
-    #reconnect-button {
-        border-top: 1px solid #333;
-        border-bottom: 1px solid #333;
-    }
-}
-
-@media (orientation: portrait) {
-    #main-container {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .tools-zone {
-        flex-direction: row;
-        height: max(0px, calc((100vh - min(100vw, 66.66vh)) / 2));
-        min-height: 0;
-    }
-
-    #zone-3b, #zone-2b {
-        width: calc(100vw / 3);
-        height: 100%;
-        min-height: 0;
-    }
-
-    .sub-zone {
-        flex-direction: column;
-        width: calc(100vw / 3);
-        min-height: 0;
-    }
-
-    .split-zone {
-        width: 100%;
-        height: 50%;
-        min-height: 0;
-    }
-
-    .tool-circle {
-        width: 100%;
-        height: 100%;
-        min-width: 0;
-        min-height: 0;
-    }
-
-    .main-zone {
-        width: 100%;
-        height: min(100%, 66.66vh);
-        flex: 0 0 auto;
-        border-top: 1px solid #333;
-        border-bottom: 1px solid #333;
-    }
-
-    .activity-box {
-        border-left: 1px solid #333;
-        border-right: 1px solid #333;
-    }
-
-    #reconnect-button {
-        border-left: 1px solid #333;
-        border-right: 1px solid #333;
-    }
 }
 
 /* Ajouter ces styles avec les autres styles d'overlay */
@@ -524,13 +398,6 @@ body.light-mode #zone-2c1 .theme-light {
     position: relative;
 }
 
-/* Style spécifique pour l'icône de zoom */
-#zone-2a2 .zoom-icon {
-    width: min(40%, 40px);
-    height: min(40%, 40px);
-    position: relative;
-}
-
 /* Couleurs des boutons standards */
 #zone-3a1 .tool-circle,
 #zone-3a2 .tool-circle,
@@ -545,18 +412,6 @@ body.light-mode #zone-2c1 .theme-light {
 /* La grille principale */
 .main-zone {
     background-color: var(--grid-background);
-    transition: background-color 0.3s ease;
-}
-
-/* Bouton zoom et son icône */
-#zone-2a2 .tool-circle {
-    background-color: var(--background-color);
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
     transition: background-color 0.3s ease;
 }
 
@@ -590,97 +445,10 @@ body.light-mode #reconnect-button {
     transition: background-color 0.3s ease;
 }
 
-/* Bouton zoom - s'assurer que le sélecteur est assez spécifique */
-#zone-2a2 .tool-circle,
-.zoom-button {
-    background-color: var(--background-color) !important;  /* Utilisation temporaire de !important pour debug */
-    transition: background-color 0.3s ease;
-}
-
-/* Styles spécifiques pour le bouton zoom */
-#zone-2a2 .tool-circle {
-    background-color: var(--background-color) !important;  /* Force le style */
-}
-
-/* S'assurer que tous les éléments parents n'interfèrent pas */
-#zone-2a2,
-#zone-2a2 > *,
-#zone-2a2 .tool-circle {
-    background-color: var(--background-color) !important;
-}
-
-/* Ajouter la transition */
-#zone-2a2 .tool-circle {
-    transition: background-color 0.3s ease !important;
-}
-
-/* Bouton zoom - conteneur */
-#zone-2a1 .tool-circle {
-    background-color: var(--background-color);
-    position: relative;
-    z-index: 1;
-    transition: background-color 0.3s ease;
-}
-
-/* Icône de zoom */
-#zone-2a1 .zoom-icon {
-    width: min(40%, 40px);
-    height: min(40%, 40px);
-    position: relative;
-    z-index: 2;
-}
-
-/* Couleurs des chemins SVG */
-#zone-2a1 .zoom-icon path {
-    stroke: var(--text-color);
-    transition: stroke 0.3s ease;
-}
-
-/* États du zoom */
-body.disconnected #zone-2a1 .zoom-icon {
-    opacity: 0.3;
-}
-
-/* Forcer le style sur tous les niveaux */
-#zone-2a1,
-.zoom-button,
-#zone-2a1 div {
-    background-color: var(--background-color) !important;
-}
-
-/* Debug - afficher la structure */
-#zone-2a1 {
-    border: 1px solid red;  /* Temporaire pour debug */
-}
-
-#zone-2a1 .tool-circle {
-    border: 1px solid blue;  /* Temporaire pour debug */
-}
-
-/* Retirer les bordures de debug */
-#zone-2a1,
-#zone-2a1 .tool-circle {
-    border: none;  /* Supprime les bordures rouges et bleues */
-}
-
 /* Ajuster les bordures pour le mode clair */
 body.light-mode .main-zone {
     border-left: 1px solid #cccccc;
     border-right: 1px solid #cccccc;
-}
-
-@media (orientation: landscape) {
-    body.light-mode .activity-box {
-        border-top: 1px solid #cccccc;
-        border-bottom: 1px solid #cccccc;
-    }
-}
-
-@media (orientation: portrait) {
-    body.light-mode .activity-box {
-        border-left: 1px solid #cccccc;
-        border-right: 1px solid #cccccc;
-    }
 }
 
 /* Styles pour le zoom */
@@ -704,4 +472,190 @@ body.light-mode .main-zone {
 
 #zone-2a1.zoomed .zoom-active {
   display: block;
+}
+
+/* Style de base pour l'icône de zoom */
+#zone-2a1 .zoom-icon {
+    width: min(40%, 40px);
+    height: min(40%, 40px);
+    position: relative;
+    color: var(--text-color);
+}
+
+/* Conteneur du petit carré */
+.inner-square-container {
+    transform-origin: 15px 9px; /* Centre du petit carré */
+    transition: transform 0.3s ease;
+}
+
+/* État zoomé */
+#zone-2a1[data-state="zoomed"] .inner-square-container {
+    transform: translate(-3px, 3px) scale(3);
+}
+
+/* État déconnecté */
+body.disconnected #zone-2a1 .zoom-icon {
+    opacity: 0.3;
+}
+
+/* Style de l'icône d'import */
+#zone-2a2 .import-icon {
+    width: min(40%, 40px);
+    height: min(40%, 40px);
+    position: relative;
+    color: var(--text-color);
+}
+
+/* État déconnecté */
+body.disconnected #zone-2a2 .import-icon {
+    opacity: 0.3;
+}
+
+/* Media queries */
+@media (orientation: landscape) {
+    #main-container {
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    .tools-zone {
+        flex-direction: column;
+        width: max(0px, calc((100vw - min(100vh, 66.66vw)) / 2));
+        min-width: 0;
+    }
+
+    #zone-3b, #zone-2b {
+        height: calc(100vh / 3);
+        width: 100%;
+        min-height: 0;
+    }
+
+    .sub-zone {
+        flex-direction: row;
+        height: calc(100vh / 3);
+        min-height: 0;
+    }
+
+    .split-zone {
+        width: 50%;
+        height: 100%;
+    }
+
+    .tool-circle {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .main-zone {
+        height: min(100vh, 66.66vw);
+        width: min(100vh, 66.66vw);
+        flex: 0 0 auto;
+        border-left: 1px solid #333;
+        border-right: 1px solid #333;
+    }
+
+    .activity-box {
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+    }
+
+    #reconnect-button {
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+    }
+    
+    body.light-mode .activity-box {
+        border-top: 1px solid #cccccc;
+        border-bottom: 1px solid #cccccc;
+    }
+}
+
+@media (orientation: portrait) {
+    #main-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .tools-zone {
+        flex-direction: row;
+        height: max(0px, calc((100vh - min(100vw, 66.66vh)) / 2));
+        min-height: 0;
+    }
+
+    #zone-3b, #zone-2b {
+        width: calc(100vw / 3);
+        height: 100%;
+        min-height: 0;
+    }
+
+    .sub-zone {
+        flex-direction: column;
+        width: calc(100vw / 3);
+        min-height: 0;
+    }
+
+    .split-zone {
+        width: 100%;
+        height: 50%;
+        min-height: 0;
+    }
+
+    .tool-circle {
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+    }
+
+    .main-zone {
+        width: 100%;
+        height: min(100%, 66.66vh);
+        flex: 0 0 auto;
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+    }
+
+    .activity-box {
+        border-left: 1px solid #333;
+        border-right: 1px solid #333;
+    }
+
+    #reconnect-button {
+        border-left: 1px solid #333;
+        border-right: 1px solid #333;
+    }
+
+    body.light-mode .activity-box {
+        border-left: 1px solid #cccccc;
+        border-right: 1px solid #cccccc;
+    }
+}
+
+.user-cell.importing-image {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.user-cell.importing-image > div {
+    transition: background-color 0.3s ease-in-out;
+}
+
+.tool-circle.processing {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+.user-cell.importing-image > div {
+    transition: background-color 0.3s ease-in-out;
+}
+
+@keyframes processing-pulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0.5; }
+}
+
+.tool-circle.processing {
+    animation: processing-pulse 2s infinite;
 }

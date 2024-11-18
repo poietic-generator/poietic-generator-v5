@@ -319,10 +319,9 @@ before_all do |env|
   env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
   env.response.headers["Pragma"] = "no-cache"
   env.response.headers["Expires"] = "0"
-end
-
-get "/" do |env|
-  send_file env, "public/index.html"
+  env.response.headers["Last-Modified"] = Time.utc.to_rfc2822
+  env.response.headers["ETag"] = Random.new.hex(8)
+  env.response.headers["Vary"] = "*"
 end
 
 get "/css/:file" do |env|
@@ -330,7 +329,8 @@ get "/css/:file" do |env|
   env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
   env.response.headers["Pragma"] = "no-cache"
   env.response.headers["Expires"] = "0"
-  send_file env, "public/css/#{file}", "text/css"
+  env.response.headers["Content-Type"] = "text/css"
+  send_file env, "public/css/#{file}"
 end
 
 # Route générique pour tous les fichiers JavaScript
@@ -339,7 +339,8 @@ get "/js/:file" do |env|
   env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
   env.response.headers["Pragma"] = "no-cache"
   env.response.headers["Expires"] = "0"
-  send_file env, "public/js/#{file}", "application/javascript"
+  env.response.headers["Content-Type"] = "application/javascript"
+  send_file env, "public/js/#{file}"
 end
 
 # Route pour les fichiers JS des bots
@@ -348,7 +349,12 @@ get "/js/bots/:file" do |env|
   env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
   env.response.headers["Pragma"] = "no-cache"
   env.response.headers["Expires"] = "0"
-  send_file env, "public/js/bots/#{file}", "application/javascript"
+  env.response.headers["Content-Type"] = "application/javascript"
+  send_file env, "public/js/bots/#{file}"
+end
+
+get "/" do |env|
+  send_file env, "public/index.html"
 end
 
 get "/monitoring" do |env|
@@ -359,17 +365,17 @@ get "/viewer" do |env|
   send_file env, "public/viewer.html"
 end
 
-get "/images/:file" do |env|
-  file = env.params.url["file"]
-  send_file env, "public/images/#{file}"
-end
-
-get "/simulator" do |env|
-  send_file env, "public/simulator.html"
+get "/addbot" do |env|
+  send_file env, "public/addbot.html"
 end
 
 get "/bot" do |env|
   send_file env, "public/bot.html"
+end
+
+get "/images/:file" do |env|
+  file = env.params.url["file"]
+  send_file env, "public/images/#{file}"
 end
 
 ws "/updates" do |socket, context|

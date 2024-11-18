@@ -4,80 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poietic Generator Viewer</title>
-    <script src="/js/poietic-viewer.js?v=dev"></script>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            background-color: black;
-        }
-        #poietic-grid {
-            width: 100%;
-            height: 100%;
-            max-width: 100vmin;
-            max-height: 100vmin;
-            position: relative;
-        }
-        .user-cell {
-            position: absolute;
-            display: grid;
-            grid-template-columns: repeat(20, 1fr);
-            grid-template-rows: repeat(20, 1fr);
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        .user-cell.highlighted::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border: 4px solid rgba(255, 255, 255, 0.8);
-            pointer-events: none;
-            z-index: 1000;
-        }
-        .sub-cell {
-            width: 100%;
-            height: 100%;
-        }
-        #qr-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: black;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 3s ease, visibility 3s ease;
-        }
-        #qr-overlay.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-        #qr-code {
-            width: 50%;
-            height: 50%;
-            object-fit: contain;
-        }
-    </style>
+    <link rel="stylesheet" href="/css/viewer-style.css?v=<%= Time.utc.to_unix %>">
 </head>
 <body>
     <div id="poietic-grid"></div>
     <div id="qr-overlay">
-        <img id="qr-code" src="/images/qr-code.png" alt="QR Code">
+        <img id="qr-code" src="/images/qr-code.png?v=<%= Time.utc.to_unix %>" alt="QR Code">
     </div>
-    <script src="/js/poietic-viewer.js"></script>
+    <script src="/js/poietic-viewer.js?v=<%= Time.utc.to_unix %>"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof PoieticViewer !== 'undefined') {

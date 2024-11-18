@@ -1,3 +1,5 @@
+import { ImageImporter } from './poietic-import.js';
+
 class PoieticClient {
     constructor() {
         if (PoieticClient.instance) {
@@ -67,6 +69,14 @@ class PoieticClient {
         this.zoomInactivityTimer = null;
         this.connectionInactivityTimeout = 180 * 1000;  // 3 minutes
         this.zoomInactivityTimeout = 4000;  // 4 secondes
+
+        // Constantes pour la gestion des interactions
+        this.DRAG_START_DELAY = 100;    // Délai pour détecter un drag
+        this.DRAG_MOVE_THRESHOLD = 5;   // Distance minimale pour considérer un mouvement
+        this.DRAG_IDLE_TIMEOUT = 250;   // Délai sans mouvement avant arrêt du drag
+
+        // Initialiser l'importateur d'images
+        this.imageImporter = new ImageImporter(this);
     }
 
     initialize() {
@@ -197,7 +207,6 @@ class PoieticClient {
     // SECTION: Gestion des messages
     handleMessage(message) {
         this.isLocalUpdate = false;
-        console.log('Received message:', message);
         switch (message.type) {
             case 'initial_state':
                 this.initializeState(message);
@@ -229,7 +238,6 @@ class PoieticClient {
 
     // SECTION: Gestion de l'état
     initializeState(state) {
-        console.log('Initializing state:', state);
         this.gridSize = state.grid_size;
         this.userColors = new Map(Object.entries(state.user_colors));
         this.myUserId = state.my_user_id;
@@ -463,17 +471,32 @@ class PoieticClient {
 
     // SECTION: Gestion du dessin
     startDrawing(event) {
+        if (!this.isConnected || !this.myUserId) return;
+        
         this.isDrawing = true;
-        this.isLocalUpdate = true;
+        
+        // Si on commence à dessiner en mode zoom manuel,
+        // on arrête immédiatement tout drag en cours
+        if (this.zoomState.isZoomed && !this.zoomState.isAutoZoom) {
+            this.endDrag();
+            this.drawingArea.style.cursor = '';
+        }
+
+        // Mise à jour du timestamp d'activité
+        if (this.zoomState.isZoomed) {
+            this.zoomState.lastActivityTime = Date.now();
+        }
+        
         this.draw(event);
-        // Ajouter l'écouteur mousemove uniquement pendant le dessin
-        this.grid.addEventListener('mousemove', this.boundDraw = (e) => this.draw(e));
-        this.resetInactivityTimer();
-        this.updateLastActivity();
     }
 
     draw(event) {
-        if (!this.isDrawing || !this.currentColor) return;
+        if (!this.isDrawing || !this.isConnected || !this.myUserId) return;
+
+        // Mise à jour du timestamp pendant le dessin
+        if (this.zoomState.isAutoZoom) {
+            this.zoomState.lastActivityTime = Date.now();
+        }
 
         const myCell = this.cells.get(this.myUserId);
         if (!myCell) return;
@@ -505,8 +528,11 @@ class PoieticClient {
 
     stopDrawing() {
         this.isDrawing = false;
-        // Ne pas mettre isLocalUpdate à true ici
-        this.updateLastActivity();
+        // Mise à jour du timestamp à la fin du dessin
+        if (this.zoomState.isAutoZoom) {
+            this.zoomState.lastActivityTime = Date.now();
+            this.startZoomInactivityTimer();
+        }
     }
 
     sendCellUpdate(subX, subY, color) {
@@ -622,11 +648,11 @@ class PoieticClient {
     }
 
     updateLastActivity() {
-        // Ne mettre à jour lastActivity que si c'est une action locale (dessin ou sélection de couleur)
-        if (this.isLocalUpdate) {
-            this.lastActivity = Date.now();
-            this.updateActivityDisplay();
-        }
+        this.lastActivity = Date.now();
+        this.updateActivityDisplay();
+        
+        // Réinitialiser aussi le timer d'inactivité
+        this.resetInactivityTimer();
     }
 
     startInactivityTimer() {
@@ -685,9 +711,14 @@ class PoieticClient {
         if (this.grid) {
             this.grid.addEventListener('mouseenter', () => this.handleGridEnter());
             this.grid.addEventListener('mouseleave', () => this.handleGridLeave());
-            this.grid.addEventListener('mousemove', (e) => this.handleGridMove(e));
+            this.grid.addEventListener('mousemove', (e) => {
+                this.handleGridMove(e);
+                // Ajouter l'appel à draw pendant le mouvement de la souris
+                if (this.isDrawing) {
+                    this.draw(e);
+                }
+            });
             this.grid.addEventListener('mousedown', (e) => this.startDrawing(e));
-            // Supprimer l'écouteur mousemove pour draw
             this.grid.addEventListener('mouseup', () => this.stopDrawing());
             this.grid.addEventListener('mouseleave', () => this.stopDrawing());
 
@@ -705,12 +736,24 @@ class PoieticClient {
 
     handleGridEnter() {
         this.isOverGrid = true;
+        if (this.zoomState.isAutoZoom && !this.isOverOwnCell) {
+            const myCell = this.cells.get(this.myUserId);
+            if (myCell) {
+                myCell.classList.add('highlighted');
+            }
+        }
         this.updateHighlight();
     }
 
     handleGridLeave() {
         this.isOverGrid = false;
         this.isOverOwnCell = false;
+        if (this.zoomState.isAutoZoom) {
+            const myCell = this.cells.get(this.myUserId);
+            if (myCell) {
+                myCell.classList.remove('highlighted');
+            }
+        }
         this.updateHighlight();
     }
 
@@ -722,7 +765,20 @@ class PoieticClient {
         } else {
             this.isOverOwnCell = false;
         }
-        this.updateHighlight();
+        
+        // Mise à jour de la surbrillance en fonction du mode zoom et de la position
+        if (this.zoomState.isAutoZoom) {
+            const myCell = this.cells.get(this.myUserId);
+            if (myCell) {
+                if (this.isOverOwnCell) {
+                    myCell.classList.remove('highlighted');
+                } else if (this.isOverGrid) {
+                    myCell.classList.add('highlighted');
+                }
+            }
+        } else {
+            this.updateHighlight();
+        }
     }
 
     updateHighlight() {
@@ -781,7 +837,7 @@ class PoieticClient {
         this.lastActivity = Date.now();
         this.disconnectedAt = null;
 
-        console.log('État du client réinitialisé');
+        console.log('tat du client réinitialisé');
     }
 
     handleUserDisconnected(message) {
@@ -811,33 +867,27 @@ class PoieticClient {
     }
 
     initZoomHandlers() {
-        // Bouton de zoom automatique
+        // Conserver les gestionnaires existants pour le zoom automatique
         const zoomButton = document.querySelector('#zone-2a1 .tool-circle');
-        
-        // Ajout des événements de survol
-        zoomButton.addEventListener('mouseenter', () => {
-            this.highlightUserCell(true);
-        });
-        
+        zoomButton.addEventListener('mouseenter', () => this.highlightUserCell(true));
         zoomButton.addEventListener('mouseleave', () => {
-            if (!this.zoomState.isAutoZoom) {
-                this.highlightUserCell(false);
-            }
+            if (!this.zoomState.isAutoZoom) this.highlightUserCell(false);
         });
-
         zoomButton.addEventListener('click', () => this.toggleAutoZoom());
 
         // Zoom manuel (molette)
         this.drawingArea.addEventListener('wheel', (e) => {
-            if (!this.zoomState.isAutoZoom) {
-                this.handleManualZoom(e);
-            }
+            if (!this.zoomState.isAutoZoom) this.handleManualZoom(e);
         });
 
-        // Gestion du drag en mode zoom manuel
-        this.drawingArea.addEventListener('mousedown', (e) => this.startDrag(e));
-        document.addEventListener('mousemove', (e) => this.handleDrag(e));
-        document.addEventListener('mouseup', () => this.endDrag());
+        // Nouveaux gestionnaires pour le drag and drop
+        this.drawingArea.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        this.drawingArea.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.drawingArea.addEventListener('mouseup', () => this.handleMouseUp());
+        this.drawingArea.addEventListener('mouseleave', () => this.handleMouseUp());
+
+        // Empêcher le drag and drop par défaut
+        this.drawingArea.addEventListener('dragstart', (e) => e.preventDefault());
     }
 
     toggleAutoZoom() {
@@ -952,43 +1002,109 @@ class PoieticClient {
             this.zoomState.isZoomed = newScale > 1;
             
             this.updateZoomVisuals();
-        }
-
-        this.startZoomInactivityTimer();
-    }
-
-    startDrag(e) {
-        if (!this.zoomState.isZoomed) return;
-
-        this.dragState = {
-            isDragging: true,
-            startX: e.clientX - this.zoomState.offsetX,
-            startY: e.clientY - this.zoomState.offsetY
-        };
-        
-        this.drawingArea.style.cursor = 'grabbing';
-    }
-
-    handleDrag(e) {
-        if (!this.dragState?.isDragging) return;
-
-        // Mise à jour du timestamp d'activité
-        this.zoomState.lastActivityTime = Date.now();
-
-        // Calcul du nouveau déplacement
-        this.zoomState.offsetX = e.clientX - this.dragState.startX;
-        this.zoomState.offsetY = e.clientY - this.dragState.startY;
-        
-        this.updateZoomVisuals();
-        this.startZoomInactivityTimer();
-    }
-
-    endDrag() {
-        if (this.dragState?.isDragging) {
-            this.dragState.isDragging = false;
-            this.drawingArea.style.cursor = '';
             this.startZoomInactivityTimer();
         }
+    }
+
+    handleMouseDown(e) {
+        const initialX = e.clientX;
+        const initialY = e.clientY;
+
+        if (this.isOverOwnCell) {
+            this.isDrawing = true;
+            this.draw(e);
+            this.zoomState.lastActivityTime = Date.now();
+            return;
+        }
+
+        if (!this.zoomState.isZoomed || this.zoomState.isAutoZoom) return;
+
+        this.dragState = {
+            isPending: true,
+            startX: initialX,
+            startY: initialY,
+            lastX: initialX,
+            lastY: initialY,
+            hasStartedDragging: false
+        };
+        
+        e.preventDefault();
+    }
+
+    handleMouseMove(e) {
+        this.zoomState.lastActivityTime = Date.now();
+
+        if (this.isOverOwnCell && this.isDrawing) {
+            this.draw(e);
+            return;
+        }
+
+        if (this.dragState && e.buttons === 1) {
+            const deltaX = Math.abs(e.clientX - this.dragState.startX);
+            const deltaY = Math.abs(e.clientY - this.dragState.startY);
+            
+            if (deltaX > this.DRAG_MOVE_THRESHOLD || deltaY > this.DRAG_MOVE_THRESHOLD) {
+                // Ajouter le bloqueur seulement quand on commence à drag
+                if (!this.clickBlocker) {
+                    this.clickBlocker = document.createElement('div');
+                    this.clickBlocker.style.position = 'absolute';
+                    this.clickBlocker.style.top = '0';
+                    this.clickBlocker.style.left = '0';
+                    this.clickBlocker.style.width = '100%';
+                    this.clickBlocker.style.height = '100%';
+                    this.clickBlocker.style.zIndex = '1000';
+                    this.drawingArea.appendChild(this.clickBlocker);
+                }
+                
+                this.dragState.isPending = false;
+                this.dragState.hasStartedDragging = true;
+                this.drawingArea.style.cursor = 'grabbing';
+                
+                const moveDeltaX = e.clientX - this.dragState.lastX;
+                const moveDeltaY = e.clientY - this.dragState.lastY;
+                
+                this.zoomState.offsetX += moveDeltaX;
+                this.zoomState.offsetY += moveDeltaY;
+                
+                this.dragState.lastX = e.clientX;
+                this.dragState.lastY = e.clientY;
+                
+                this.updateZoomVisuals();
+            }
+        } else if (!e.buttons) {
+            if (this.clickBlocker) {
+                this.clickBlocker.remove();
+                this.clickBlocker = null;
+            }
+            this.dragState = null;
+            this.drawingArea.style.cursor = '';
+        }
+    }
+
+    handleMouseUp(e) {
+        if (this.isOverOwnCell) {
+            this.isDrawing = false;
+            return;
+        }
+
+        // Sélection de couleur uniquement si on n'a pas fait de drag
+        if (!this.dragState?.hasStartedDragging) {
+            const targetCell = e.target.closest('.user-cell');
+            if (targetCell) {
+                const userId = [...this.cells.entries()].find(([_, cell]) => cell === targetCell)?.[0];
+                if (userId && userId !== this.myUserId) {
+                    this.handleColorBorrowing(e, userId);
+                }
+            }
+        }
+        
+        // Nettoyage
+        if (this.clickBlocker) {
+            this.clickBlocker.remove();
+            this.clickBlocker = null;
+        }
+        this.dragState = null;
+        this.drawingArea.style.cursor = '';
     }
 
     startZoomInactivityTimer() {
@@ -997,27 +1113,29 @@ class PoieticClient {
         }
 
         this.zoomInactivityTimer = setTimeout(() => {
-            if (Date.now() - this.zoomState.lastActivityTime >= this.zoomInactivityTimeout) {
-                this.resetZoom();
+            if (this.zoomState.isAutoZoom || this.zoomState.isZoomed) {
+                const inactivityDuration = Date.now() - this.zoomState.lastActivityTime;
+                if (inactivityDuration >= this.zoomInactivityTimeout) {
+                    this.resetZoom();
+                } else {
+                    this.startZoomInactivityTimer();
+                }
             }
         }, this.zoomInactivityTimeout);
     }
 
     getMaxZoom() {
-        // Le zoom maximum est calculé pour afficher une cellule utilisateur en plein écran
         const gridSize = this.gridSize;
         const cellSize = this.drawingArea.clientWidth / gridSize;
         return this.drawingArea.clientWidth / cellSize;
     }
 
-    // Nouvelle méthode pour gérer la surbrillance de la cellule utilisateur
     highlightUserCell(highlight) {
         const myCell = this.cells.get(this.myUserId);
         if (myCell) {
             if (highlight) {
                 myCell.classList.add('highlighted');
             } else {
-                // Ne pas retirer la surbrillance si on est toujours en mode zoom auto
                 if (!this.zoomState.isAutoZoom) {
                     myCell.classList.remove('highlighted');
                 }
@@ -1026,7 +1144,7 @@ class PoieticClient {
     }
 }
 
-// Initialisation du client
 document.addEventListener('DOMContentLoaded', () => {
     window.poieticClient = new PoieticClient();
 });
+
