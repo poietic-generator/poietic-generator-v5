@@ -1,4 +1,5 @@
 import { ImageImporter } from './poietic-import.js';
+import { ShareManager } from './poietic-share.js';
 
 class PoieticClient {
     constructor() {
@@ -11,6 +12,7 @@ class PoieticClient {
         this.grid = document.getElementById('poietic-grid');
         this.colorPreview = document.getElementById('color-preview');
         this.gradientPalette = document.getElementById('gradient-palette');
+        this.userPalette = document.getElementById('user-palette');
         this.activityCursor = document.getElementById('activity-cursor');
         this.reconnectButton = document.getElementById('reconnect-button');
         this.themeButton = document.querySelector('#zone-2c1 .tool-circle');
@@ -77,6 +79,8 @@ class PoieticClient {
 
         // Initialiser l'importateur d'images
         this.imageImporter = new ImageImporter(this);
+
+        this.shareManager = new ShareManager(this);
     }
 
     initialize() {
@@ -96,6 +100,16 @@ class PoieticClient {
 
         // Initialisation du bouton de thème
         this.initializeThemeButton();
+
+        // Initialiser le ShareManager après que tout est prêt
+        this.shareManager = new ShareManager(this);
+
+        // Initialiser les dimensions des canvas
+        const buttonSize = 160; // Correspond à --main-button-size
+        this.gradientPalette.width = buttonSize;
+        this.gradientPalette.height = buttonSize;
+        this.userPalette.width = buttonSize;
+        this.userPalette.height = buttonSize;
     }
 
     initializeLayout() {
@@ -361,79 +375,113 @@ class PoieticClient {
         if (!this.gradientPalette || !this.colorPreview) return;
 
         // Initialisation explicite des états
-        this.colorPreview.style.backgroundColor = '#fff';
-        this.colorPreview.style.display = 'block';
-        this.gradientPalette.style.display = 'none';  // Dfinir explicitement l'état initial
+        this.colorPreview.innerHTML = `
+            <div class="color-preview-left"></div>
+            <div class="color-preview-right"></div>
+        `;
+        this.setupColorPreviewListeners();
+        this.updateColorPreview();
+        
+        // Forcer les styles initiaux des palettes
+        this.gradientPalette.style.cssText = 'display: none;';
+        this.userPalette.style.cssText = 'display: none;';
+        
+        // Vérifier la structure DOM
+        this.checkDOMStructure();
+    }
 
-        // Gestionnaire pour afficher/masquer la palette
-        this.colorPreview.addEventListener('click', () => {
+    updateColorPreview() {
+        if (this.colorPreview && this.currentColor) {
+            // Au lieu de réécrire le HTML, on met à jour les styles des divs existants
+            const leftPreview = this.colorPreview.querySelector('.color-preview-left');
+            const rightPreview = this.colorPreview.querySelector('.color-preview-right');
+            
+            if (leftPreview && rightPreview) {
+                leftPreview.style.backgroundColor = this.currentColor;
+                rightPreview.style.backgroundColor = this.currentColor;
+            } else {
+                // Si les divs n'existent pas encore, on les crée une seule fois
+                this.colorPreview.innerHTML = `
+                    <div class="color-preview-left"></div>
+                    <div class="color-preview-right"></div>
+                `;
+                // On ajoute les event listeners
+                this.setupColorPreviewListeners();
+                // On met à jour les couleurs
+                this.updateColorPreview();
+            }
+        }
+    }
+
+    setupColorPreviewListeners() {
+        const leftPreview = this.colorPreview.querySelector('.color-preview-left');
+        const rightPreview = this.colorPreview.querySelector('.color-preview-right');
+
+        leftPreview.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.userPalette.style.display = 'none';
             if (this.gradientPalette.style.display === 'none') {
-                this.gradientPalette.style.display = 'block';
+                this.gradientPalette.style.cssText = `
+                    display: block !important;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: ${this.colorPreview.offsetWidth}px;
+                    height: ${this.colorPreview.offsetHeight}px;
+                    z-index: 450;
+                    background-color: #000000;
+                `;
                 this.updateGradientPalette();
             } else {
                 this.gradientPalette.style.display = 'none';
             }
         });
 
-        // Gestionnaire de sélection de couleur
-        this.gradientPalette.addEventListener('click', (event) => {
+        rightPreview.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.gradientPalette.style.display = 'none';
+            if (this.userPalette.style.display === 'none') {
+                this.userPalette.style.cssText = `
+                    display: block !important;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: ${this.colorPreview.offsetWidth}px;
+                    height: ${this.colorPreview.offsetHeight}px;
+                    z-index: 450;
+                    background-color: #000000;
+                `;
+                this.updateUserPalette();
+            } else {
+                this.userPalette.style.display = 'none';
+            }
+        });
+
+        this.gradientPalette.addEventListener('click', (e) => {
             const rect = this.gradientPalette.getBoundingClientRect();
-            // Calculer les coordonnées relatives au canvas
-            const x = Math.floor((event.clientX - rect.left) * (this.gradientPalette.width / rect.width));
-            const y = Math.floor((event.clientY - rect.top) * (this.gradientPalette.height / rect.height));
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
             const ctx = this.gradientPalette.getContext('2d');
             const pixel = ctx.getImageData(x, y, 1, 1).data;
             this.currentColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
             
-            // Mettre à jour le carré de couleur courante
-            this.colorPreview.style.backgroundColor = this.currentColor;
-            
-            // Masquer la palette
+            this.updateColorPreview();
             this.gradientPalette.style.display = 'none';
-            
-            // Mettre à jour l'activité
-            this.updateLastActivity();
         });
 
-        // Fonction de mise à jour du gradient
-        this.updateGradientPalette = () => {
-            const ctx = this.gradientPalette.getContext('2d');
-            const width = this.gradientPalette.width;
-            const height = this.gradientPalette.height;
-
-            // Dégradé horizontal (couleurs)
-            const gradientH = ctx.createLinearGradient(0, 0, width, 0);
-            gradientH.addColorStop(0, "rgb(255, 0, 0)");
-            gradientH.addColorStop(1/6, "rgb(255, 255, 0)");
-            gradientH.addColorStop(2/6, "rgb(0, 255, 0)");
-            gradientH.addColorStop(3/6, "rgb(0, 255, 255)");
-            gradientH.addColorStop(4/6, "rgb(0, 0, 255)");
-            gradientH.addColorStop(5/6, "rgb(255, 0, 255)");
-            gradientH.addColorStop(1, "rgb(255, 0, 0)");
-
-            // Dégradé vertical (luminosité)
-            const gradientV = ctx.createLinearGradient(0, 0, 0, height);
-            gradientV.addColorStop(0, "rgba(255, 255, 255, 1)");
-            gradientV.addColorStop(0.5, "rgba(255, 255, 255, 0)");
-            gradientV.addColorStop(0.5, "rgba(0, 0, 0, 0)");
-            gradientV.addColorStop(1, "rgba(0, 0, 0, 1)");
-
-            // Application des dégradés
-            ctx.fillStyle = gradientH;
-            ctx.fillRect(0, 0, width, height);
-            ctx.fillStyle = gradientV;
-            ctx.fillRect(0, 0, width, height);
-        };
-
-        // Initialisation
-        this.updateGradientPalette();
-    }
-
-    updateColorPreview() {
-        if (this.colorPreview && this.currentColor) {
-            this.colorPreview.style.backgroundColor = this.currentColor;
-        }
+        this.userPalette.addEventListener('click', (e) => {
+            const rect = this.userPalette.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const ctx = this.userPalette.getContext('2d');
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            this.currentColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+            
+            this.updateColorPreview();
+            this.userPalette.style.display = 'none';
+        });
     }
 
     handleColorBorrowing(event, userId) {
@@ -1142,9 +1190,159 @@ class PoieticClient {
             }
         }
     }
+
+    updateLocalCell(x, y, colorIndex) {
+        if (!this.myUserId || !this.cells.has(this.myUserId)) return;
+        
+        const cell = this.cells.get(this.myUserId);
+        const subCell = cell.children[y * 20 + x];
+        if (subCell) {
+            subCell.style.backgroundColor = this.palette[colorIndex];
+        }
+    }
+
+    sendGridUpdate(updates) {
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'batch_update',
+                updates: updates
+            }));
+        }
+    }
+
+    initializeWebSocket() {
+        this.connect();
+        // Initialiser le ShareManager après la connexion
+        this.shareManager = new ShareManager(this);
+    }
+
+    // Ajoutons une méthode pour vérifier la structure DOM
+    checkDOMStructure() {
+        console.log('Structure DOM du color-palette:');
+        const colorPalette = document.getElementById('color-palette');
+        console.log(colorPalette.innerHTML);
+        
+        console.log('Dimensions du color-palette:');
+        const rect = colorPalette.getBoundingClientRect();
+        console.log({
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            left: rect.left
+        });
+        
+        console.log('Styles calculés du gradient-palette:');
+        console.log(window.getComputedStyle(this.gradientPalette));
+        
+        console.log('Styles calculés du user-palette:');
+        console.log(window.getComputedStyle(this.userPalette));
+    }
+
+    updateGradientPalette() {
+        console.log('Mise à jour gradient-palette');
+        const ctx = this.gradientPalette.getContext('2d');
+        if (!ctx) {
+            console.error('Impossible d\'obtenir le contexte 2D pour gradient-palette');
+            return;
+        }
+
+        // Récupérer les dimensions réelles du canvas
+        const rect = this.gradientPalette.getBoundingClientRect();
+        this.gradientPalette.width = rect.width;
+        this.gradientPalette.height = rect.height;
+        
+        console.log('Dimensions du canvas:', {
+            width: rect.width,
+            height: rect.height
+        });
+
+        // Effacer le canvas
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        try {
+            // Dégradé horizontal (couleurs)
+            const gradientH = ctx.createLinearGradient(0, 0, rect.width, 0);
+            gradientH.addColorStop(0, "rgb(255, 0, 0)");      // Rouge
+            gradientH.addColorStop(0.17, "rgb(255, 255, 0)"); // Jaune
+            gradientH.addColorStop(0.33, "rgb(0, 255, 0)");   // Vert
+            gradientH.addColorStop(0.5, "rgb(0, 255, 255)");  // Cyan
+            gradientH.addColorStop(0.67, "rgb(0, 0, 255)");   // Bleu
+            gradientH.addColorStop(0.83, "rgb(255, 0, 255)"); // Magenta
+            gradientH.addColorStop(1, "rgb(255, 0, 0)");      // Rouge
+
+            // Appliquer le dégradé horizontal
+            ctx.fillStyle = gradientH;
+            ctx.fillRect(0, 0, rect.width, rect.height);
+
+            // Dégradé vertical (luminosité)
+            const gradientV = ctx.createLinearGradient(0, 0, 0, rect.height);
+            gradientV.addColorStop(0, "rgba(255, 255, 255, 1)");
+            gradientV.addColorStop(0.5, "rgba(255, 255, 255, 0)");
+            gradientV.addColorStop(0.5, "rgba(0, 0, 0, 0)");
+            gradientV.addColorStop(1, "rgba(0, 0, 0, 1)");
+
+            // Appliquer le dégradé vertical
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = gradientV;
+            ctx.fillRect(0, 0, rect.width, rect.height);
+            ctx.globalCompositeOperation = 'source-over';
+
+            console.log('Gradient dessiné avec succès');
+        } catch (error) {
+            console.error('Erreur lors du dessin du gradient:', error);
+        }
+    }
+
+    updateUserPalette() {
+        console.log('Mise à jour user-palette');
+        const ctx = this.userPalette.getContext('2d');
+        if (!ctx) return;
+
+        const width = this.colorPreview.offsetWidth;
+        const height = this.colorPreview.offsetHeight;
+        
+        this.userPalette.width = width;
+        this.userPalette.height = height;
+        ctx.clearRect(0, 0, width, height);
+
+        const colors = new Set();
+        const myCell = this.cells.get(this.myUserId);
+        if (myCell) {
+            Array.from(myCell.children).forEach(subCell => {
+                const color = subCell.style.backgroundColor;
+                if (color && color !== 'transparent') {
+                    colors.add(color);
+                }
+            });
+        }
+
+        // Ajouter des couleurs de test si nécessaire
+        if (colors.size === 0) {
+            colors.add('rgb(255, 0, 0)');
+            colors.add('rgb(0, 255, 0)');
+            colors.add('rgb(0, 0, 255)');
+        }
+
+        // Organiser les couleurs en grille
+        const colorArray = Array.from(colors);
+        const gridSize = Math.ceil(Math.sqrt(colorArray.length));
+        const cellWidth = width / gridSize;
+        const cellHeight = height / gridSize;
+
+        colorArray.forEach((color, index) => {
+            const x = (index % gridSize) * cellWidth;
+            const y = Math.floor(index / gridSize) * cellHeight;
+            
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, cellWidth, cellHeight);
+            
+            // Ajouter une bordure
+            ctx.strokeStyle = 'rgba(128, 128, 128, 0.5)';
+            ctx.strokeRect(x, y, cellWidth, cellHeight);
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     window.poieticClient = new PoieticClient();
 });
-

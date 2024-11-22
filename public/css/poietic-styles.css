@@ -179,6 +179,7 @@ body.disconnected #reconnect-button {
     height: 100%;
     aspect-ratio: auto;
     z-index: 400;
+    background-color: transparent;
 }
 
 #color-preview {
@@ -189,6 +190,31 @@ body.disconnected #reconnect-button {
     cursor: pointer;
     position: relative;
     z-index: 400;
+    display: flex;
+}
+
+.color-preview-left,
+.color-preview-right {
+    flex: 1;
+    height: 100%;
+    cursor: pointer;
+}
+
+.color-preview-right {
+    border-left: 1px solid #666;
+}
+
+#user-palette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0;
+    display: none;
+    cursor: crosshair;
+    z-index: 450;
+    background-color: white;
 }
 
 #gradient-palette {
@@ -201,6 +227,7 @@ body.disconnected #reconnect-button {
     display: none;
     cursor: crosshair;
     z-index: 450;
+    background-color: white;
 }
 
 /* Zone de dessin */
@@ -658,4 +685,100 @@ body.disconnected #zone-2a2 .import-icon {
 
 .tool-circle.processing {
     animation: processing-pulse 2s infinite;
+}
+
+.share-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+}
+
+.share-preview {
+    position: relative;
+    background: transparent;
+    padding: 30px 30px 5px 30px;
+    line-height: 0;
+}
+
+.share-preview img {
+    max-height: 80vh;
+    max-width: 90vw;
+    height: auto;
+    width: auto;
+}
+
+.close-button {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 10000;
+}
+
+.share-options {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.share-option {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 5px 10px;
+}
+
+/* Mise à jour des styles pour les palettes */
+#gradient-palette,
+#user-palette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0;
+    display: none;
+    cursor: crosshair;
+    z-index: 450;
+    background-color: #000000;
+}
+
+/* Ajout d'une classe spécifique pour les palettes actives */
+.palette-active {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* En format paysage (par défaut) */
+#zone-2b {
+    border-top: 1px solid #666;
+    border-bottom: 1px solid #666;
+    border-left: none;
+    border-right: none;
+}
+
+/* En format portrait */
+@media (orientation: portrait) {
+    #zone-2b {
+        border-top: none;
+        border-bottom: none;
+        border-left: 1px solid #666;
+        border-right: 1px solid #666;
+    }
 }

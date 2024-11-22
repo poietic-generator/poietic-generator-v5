@@ -102,9 +102,10 @@
             </div>
             <div id="zone-2b" class="sub-zone">
                 <div class="color-tools">
-                    <div id="color-palette">
-                        <div id="color-preview"></div>
-                        <canvas id="gradient-palette"></canvas>
+                    <div id="color-palette" style="background-color: #000000">
+                        <div id="color-preview" style="background-color: #000000"></div>
+                        <canvas id="gradient-palette" style="background-color: #000000"></canvas>
+                        <canvas id="user-palette" style="background-color: #000000"></canvas>
                     </div>
                 </div>
             </div>
@@ -135,16 +136,19 @@
                 <div id="zone-2c2" class="split-zone">
                     <div class="tool-circle">
                         <svg class="share-icon" viewBox="0 0 24 24" width="24" height="24">
-                            <circle cx="12" cy="6" r="2.5" fill="currentColor"/>
-                            <circle cx="6" cy="16" r="2.5" fill="currentColor"/>
-                            <circle cx="18" cy="16" r="2.5" fill="currentColor"/>
-                            <line x1="12" y1="6" x2="6" y2="16" 
+                            <!-- Rotation de 90° autour du centre (12,12) et cercles agrandis -->
+                            <circle cx="6" cy="12" r="3" fill="currentColor"/>
+                            <circle cx="16" cy="18" r="3" fill="currentColor"/>
+                            <circle cx="16" cy="6" r="3" fill="currentColor"/>
+                            
+                            <!-- Lignes de connexion ajustées -->
+                            <line x1="6" y1="12" x2="16" y2="18" 
                                   stroke="currentColor" 
-                                  stroke-width="1.5"
+                                  stroke-width="2"
                                   stroke-linecap="round"/>
-                            <line x1="12" y1="6" x2="18" y2="16" 
+                            <line x1="6" y1="12" x2="16" y2="6" 
                                   stroke="currentColor" 
-                                  stroke-width="1.5"
+                                  stroke-width="2"
                                   stroke-linecap="round"/>
                         </svg>
                     </div>
@@ -153,5 +157,6 @@
         </div>
     </div>
 <script type="module" src="/js/poietic-client.js?v=<%= Time.utc.to_unix %>"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </body>
 </html>
