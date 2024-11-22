@@ -416,6 +416,13 @@ class PoieticClient {
     setupColorPreviewListeners() {
         const leftPreview = this.colorPreview.querySelector('.color-preview-left');
         const rightPreview = this.colorPreview.querySelector('.color-preview-right');
+        const colorPalette = document.getElementById('color-palette');
+
+        // Ajout des gestionnaires de survol
+        colorPalette.addEventListener('mouseleave', () => {
+            this.gradientPalette.style.display = 'none';
+            this.userPalette.style.display = 'none';
+        });
 
         leftPreview.addEventListener('click', (e) => {
             e.stopPropagation();
