@@ -12,7 +12,7 @@ export class ShareManager {
         const shareButton = document.querySelector('#zone-2c2');
         if (shareButton) {
             console.log('Share button found, adding listener');
-            shareButton.addEventListener('click', (e) => {
+            shareButton.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 console.log('Share button clicked');
                 this.handleShare();
@@ -97,31 +97,42 @@ export class ShareManager {
     }
 
     showShareDialog(canvas) {
+        // Vérifions d'abord si un dialog existe déjà et le supprimer si c'est le cas
+        const existingDialog = document.querySelector('.share-modal');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+
         const dialog = document.createElement('div');
         dialog.className = 'share-modal';
         
+        // Simplifions la structure HTML
         dialog.innerHTML = `
-            <div class="share-preview">
-                <button class="close-button">×</button>
-                <img src="${canvas.toDataURL('image/png', 1.0)}" alt="Preview">
-                <div class="share-options">
-                    <button class="share-option" data-type="download">download</button>
-                    <button class="share-option" data-type="email">email</button>
-                    <button class="share-option" data-type="mastodon">mastodon</button>
+            <div class="modal-overlay">
+                <div class="share-preview">
+                    <button class="close-button">×</button>
+                    <img src="${canvas.toDataURL('image/png', 1.0)}" alt="Preview">
+                    <div class="share-options">
+                        <button class="share-option" data-type="download">download</button>
+                        <button class="share-option" data-type="email">email</button>
+                        <button class="share-option" data-type="mastodon">mastodon</button>
+                    </div>
                 </div>
             </div>
         `;
 
-        const close = () => dialog.remove();
-
+        // Un seul gestionnaire d'événements pour la fermeture
         dialog.addEventListener('click', (e) => {
-            if (e.target === dialog || e.target.classList.contains('close-button')) {
-                close();
+            // Si on clique sur l'overlay ou le bouton de fermeture
+            if (e.target.classList.contains('modal-overlay') || e.target.classList.contains('close-button')) {
+                dialog.remove();
                 return;
             }
 
-            if (e.target.classList.contains('share-option')) {
-                this.handleShareOption(e.target.dataset.type, canvas);
+            // Gestion des boutons de partage
+            const shareButton = e.target.closest('.share-option');
+            if (shareButton) {
+                this.handleShareOption(shareButton.dataset.type, canvas);
             }
         });
 
@@ -153,7 +164,7 @@ export class ShareManager {
         const subject = encodeURIComponent('Poietic Generator');
         const body = encodeURIComponent(`
             Poietic Generator
-            good net art since 1986
+            Pixel Love since 1986
             ${window.location.href}
         `);
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
@@ -163,7 +174,7 @@ export class ShareManager {
         const instance = prompt('Entrez l\'URL de votre instance Mastodon:');
         if (!instance) return;
         
-        const text = `Poietic Generator\ngood net art since 1986\n${window.location.href}`;
+        const text = `Poietic Generator\nPixel Love since 1986\n${window.location.href}`;
         window.open(`${instance}/share?text=${encodeURIComponent(text)}`);
     }
 } 
