@@ -474,6 +474,7 @@ class PoieticClient {
             this.currentColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
             
             this.updateColorPreview();
+            this.updateUserPalette();
             this.gradientPalette.style.display = 'none';
         });
 
@@ -487,6 +488,7 @@ class PoieticClient {
             this.currentColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
             
             this.updateColorPreview();
+            this.updateUserPalette();
             this.userPalette.style.display = 'none';
         });
     }
@@ -1300,8 +1302,46 @@ class PoieticClient {
         }
     }
 
+    // Nouvelle fonction utilitaire pour convertir RGB en HSL
+    rgbToHsl(r, g, b) {
+        r /= 255;
+        g /= 255;
+        b /= 255;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0; // achromatique
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+
+        return [h * 360, s * 100, l * 100];
+    }
+
+    // Fonction pour extraire les valeurs RGB d'une chaîne de couleur
+    parseRgb(color) {
+        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (match) {
+            return [
+                parseInt(match[1]),
+                parseInt(match[2]),
+                parseInt(match[3])
+            ];
+        }
+        return [0, 0, 0];
+    }
+
     updateUserPalette() {
-        console.log('Mise à jour user-palette');
         const ctx = this.userPalette.getContext('2d');
         if (!ctx) return;
 
@@ -1312,26 +1352,51 @@ class PoieticClient {
         this.userPalette.height = height;
         ctx.clearRect(0, 0, width, height);
 
+        // Collecter les couleurs
         const colors = new Set();
         const myCell = this.cells.get(this.myUserId);
         if (myCell) {
             Array.from(myCell.children).forEach(subCell => {
                 const color = subCell.style.backgroundColor;
                 if (color && color !== 'transparent') {
-                    colors.add(color);
+                    // Vérifier luminosité et saturation avant d'ajouter la couleur
+                    const [r, g, b] = this.parseRgb(color);
+                    const [h, s, l] = this.rgbToHsl(r, g, b);
+                    
+                    // Filtrer les couleurs :
+                    // - trop claires (l > 95%) ou trop foncées (l < 5%)
+                    // - trop saturées (s > 95%) ou trop peu saturées (s < 15%)
+                    if (l < 95 && l > 10 && s < 95 && s > 10) {
+                        colors.add(color);
+                    }
                 }
             });
         }
 
-        // Ajouter des couleurs de test si nécessaire
+        // Ajouter des couleurs par défaut si nécessaire
         if (colors.size === 0) {
             colors.add('rgb(255, 0, 0)');
             colors.add('rgb(0, 255, 0)');
             colors.add('rgb(0, 0, 255)');
         }
 
-        // Organiser les couleurs en grille
-        const colorArray = Array.from(colors);
+        // Convertir les couleurs en tableau et trier
+        const colorArray = Array.from(colors).sort((a, b) => {
+            const [r1, g1, b1] = this.parseRgb(a);
+            const [r2, g2, b2] = this.parseRgb(b);
+            
+            const [h1, s1, l1] = this.rgbToHsl(r1, g1, b1);
+            const [h2, s2, l2] = this.rgbToHsl(r2, g2, b2);
+            
+            // Trier par teinte
+            if (h1 !== h2) return h1 - h2;
+            // Puis par luminosité
+            if (l1 !== l2) return l2 - l1;
+            // Enfin par saturation
+            return s2 - s1;
+        });
+
+        // Afficher les couleurs triées
         const gridSize = Math.ceil(Math.sqrt(colorArray.length));
         const cellWidth = width / gridSize;
         const cellHeight = height / gridSize;
@@ -1343,10 +1408,20 @@ class PoieticClient {
             ctx.fillStyle = color;
             ctx.fillRect(x, y, cellWidth, cellHeight);
             
-            // Ajouter une bordure
             ctx.strokeStyle = 'rgba(128, 128, 128, 0.5)';
             ctx.strokeRect(x, y, cellWidth, cellHeight);
         });
+    }
+
+    handleDrawing(event) {
+        if (!this.isDrawing || !this.isOverGrid || !this.currentColor) return;
+
+        const cell = event.target;
+        if (cell.style.backgroundColor !== this.currentColor) {
+            cell.style.backgroundColor = this.currentColor;
+            this.sendUpdate(cell);
+            this.updateUserPalette();
+        }
     }
 }
 
