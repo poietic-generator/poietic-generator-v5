@@ -1,6 +1,7 @@
 require "kemal"
 require "uuid"
 require "json"
+require "./poietic-recorder"
 
 class Grid
   property user_positions : Hash(String, Tuple(Int32, Int32))
@@ -124,16 +125,18 @@ class Session
   property grid : Grid
   property user_colors : Hash(String, String)
   property last_activity : Hash(String, Time)
+  property recorders : Array(HTTP::WebSocket)
 
   def initialize
     @users = Hash(String, HTTP::WebSocket).new
     @grid = Grid.new
     @user_colors = Hash(String, String).new
     @last_activity = Hash(String, Time).new
+    @recorders = [] of HTTP::WebSocket
   end
 
-  def add_user(socket : HTTP::WebSocket) : String
-    user_id = UUID.random.to_s
+  def add_user(socket : HTTP::WebSocket, forced_id : String? = nil) : String
+    user_id = forced_id || UUID.random.to_s
     @users[user_id] = socket
     @user_colors[user_id] = generate_random_color
     @last_activity[user_id] = Time.utc
@@ -153,16 +156,37 @@ class Session
   end
 
   def send_initial_state(user_id : String)
-    grid_size = calculate_grid_size  # Utiliser la même taille pour tous
-    initial_state = {
+    grid_size = calculate_grid_size
+    
+    # État pour le client
+    client_state = {
       type: "initial_state",
-      grid_size: grid_size,  # Utiliser la taille calculée dès le début
+      grid_size: grid_size,
       grid_state: @grid.to_json,
       user_colors: @user_colors,
       sub_cell_states: serialize_sub_cell_states,
       my_user_id: user_id
     }.to_json
-    @users[user_id].send(initial_state)
+    
+    # Envoyer au client
+    @users[user_id].send(client_state)
+    
+    # État pour le recorder (format différent)
+    unless user_id.starts_with?("observer_")
+      recorder_state = {
+        type: "initial_state",
+        timestamp: Time.utc.to_unix_ms,
+        grid_size: grid_size,
+        user_positions: @grid.user_positions.transform_values { |pos| [pos[0], pos[1]] },
+        user_colors: @user_colors,
+        sub_cell_states: serialize_sub_cell_states
+      }
+      
+      puts "=== Enregistrement de l'état initial pour le recorder ==="
+      puts "=== État: #{recorder_state.inspect} ==="
+      
+      API.recorder.record_event(JSON.parse(recorder_state.to_json))
+    end
   end
 
   def broadcast_new_user(new_user_id : String)
@@ -183,26 +207,60 @@ class Session
     @grid.effective_size
   end
 
+  def broadcast_initial_state(user)
+    puts "=== Envoi de l'état initial ==="
+    state = {
+      type: "initial_state",
+      timestamp: Time.utc.to_unix_ms,  # Ajout du timestamp ici
+      grid_size: calculate_grid_size,
+      user_positions: @grid.user_positions.transform_values { |pos| [pos[0], pos[1]] },
+      user_colors: @user_colors,
+      sub_cell_states: serialize_sub_cell_states
+    }
+    puts "=== État initial: #{state.inspect} ==="
+    broadcast(state.to_json)
+  end
+
   def remove_user(user_id : String)
     if position = @grid.get_user_position(user_id)
+      # Enregistrer d'abord la déconnexion
+      API.recorder.record_user_left(user_id)
+      
+      # Puis effectuer les modifications d'état
       @grid.remove_user(user_id)
       @users.delete(user_id)
       @user_colors.delete(user_id)
       @last_activity.delete(user_id)
-      broadcast_user_left(user_id, position)
+      
+      # Envoyer les notifications dans l'ordre
+      broadcast_user_left(user_id)
       broadcast_zoom_update
+      
+      # Vérifier si c'était le dernier utilisateur
+      if @users.empty?
+        puts "=== Dernier utilisateur déconnecté, fin de la session ==="
+        API.recorder.end_current_session
+      end
     end
   end
 
   def broadcast_zoom_update
     zoom_update_message = {
       type: "zoom_update",
+      timestamp: Time.utc.to_unix_ms,
       grid_size: calculate_grid_size,
       grid_state: @grid.to_json,
       user_colors: @user_colors,
       sub_cell_states: serialize_sub_cell_states
-    }.to_json
-    broadcast(zoom_update_message)
+    }
+    
+    # Enregistrer explicitement dans le recorder
+    API.recorder.record_event(JSON.parse(zoom_update_message.to_json))
+    
+    # Puis broadcaster aux clients et observers
+    message = zoom_update_message.to_json
+    broadcast(message)
+    send_to_observers(message)
   end
 
   def broadcast_user_left(user_id : String, position : Tuple(Int32, Int32))
@@ -236,9 +294,12 @@ class Session
       user_id: user_id,
       sub_x: sub_x,
       sub_y: sub_y,
-      color: color
+      color: color,
+      timestamp: Time.utc.to_unix_ms
     }.to_json
     broadcast(update_message)
+    # Enregistrer l'événement dans le recorder
+    API.recorder.record_event(JSON.parse(update_message))
   end
 
   def broadcast(message)
@@ -304,6 +365,17 @@ class Session
       end
     end
   end
+
+  private def broadcast_to_recorders(message : String)
+    @recorders.each do |recorder|
+      begin
+        recorder.send(message)
+      rescue ex
+        puts "Erreur d'envoi au recorder: #{ex.message}"
+        @recorders.delete(recorder)
+      end
+    end
+  end
 end
 
 module PoieticGenerator
@@ -313,6 +385,56 @@ module PoieticGenerator
     @@current_session
   end
 end
+
+# Au début du fichier, après les requires
+class PoieticGeneratorApi
+  property sockets : Array(HTTP::WebSocket)
+  property observers : Array(HTTP::WebSocket)
+  property recorders : Array(HTTP::WebSocket)
+  property recorder : PoieticRecorder
+  property grid : Grid
+  property user_colors : Hash(String, Array(String))
+  property last_activity : Hash(String, Time)
+  
+  def initialize
+    @sockets = [] of HTTP::WebSocket
+    @observers = [] of HTTP::WebSocket
+    @recorders = [] of HTTP::WebSocket
+    @recorder = PoieticRecorder.new
+    @grid = Grid.new
+    @user_colors = Hash(String, Array(String)).new
+    @last_activity = Hash(String, Time).new
+  end
+
+  def calculate_grid_size
+    Math.sqrt(@sockets.size).ceil.to_i
+  end
+
+  def broadcast(message : String)
+    @sockets.each do |socket|
+      begin
+        socket.send(message)
+      rescue ex
+        puts "Erreur d'envoi: #{ex.message}"
+        @sockets.delete(socket)
+      end
+    end
+  end
+
+  private def broadcast_to_recorders(message : String)
+    @recorders.each do |recorder|
+      begin
+        recorder.send(message)
+      rescue ex
+        puts "Erreur d'envoi au recorder: #{ex.message}"
+        @recorders.delete(recorder)
+      end
+    end
+  end
+end
+
+# Créer l'instance de l'API
+API = PoieticGeneratorApi.new
 
 # Ajouter avant les routes
 before_all do |env|
@@ -379,14 +501,22 @@ get "/images/:file" do |env|
 end
 
 ws "/updates" do |socket, context|
+  puts "=== Nouvelle connexion WebSocket sur /updates ==="
+  
   mode = context.request.query_params["mode"]?
   is_observer = mode == "full" || mode == "monitoring"
 
+  # Démarrer une nouvelle session si c'est le premier utilisateur régulier
+  if !is_observer && PoieticGenerator.current_session.users.empty?
+    puts "=== Premier utilisateur connecté, démarrage d'une nouvelle session ==="
+    API.recorder.start_new_session
+  end
+
   user_id = if is_observer
-    puts "Adding observer with mode: #{mode}"
+    puts "=== Adding observer with mode: #{mode} ==="
     PoieticGenerator.current_session.add_observer(socket)
   else
-    puts "Adding regular user"
+    puts "=== Adding regular user ==="
     PoieticGenerator.current_session.add_user(socket)
   end
 
@@ -406,8 +536,15 @@ ws "/updates" do |socket, context|
   end
 
   socket.on_close do
-    puts "Socket closed for #{user_id}"
-    PoieticGenerator.current_session.remove_user(user_id) unless is_observer
+    puts "=== Socket closed for #{user_id} ==="
+    if !is_observer
+      PoieticGenerator.current_session.remove_user(user_id)
+      # Terminer la session si c'était le dernier utilisateur régulier
+      if PoieticGenerator.current_session.users.empty?
+        puts "=== Dernier utilisateur déconnecté, fin de la session ==="
+        API.recorder.end_current_session
+      end
+    end
   end
 end
 
@@ -419,8 +556,81 @@ spawn do
   end
 end
 
-Kemal.config.port = 3001
-Kemal.run do |config|
-  server = config.server.not_nil!
-  server.bind_tcp "0.0.0.0", 3001
+ws "/record" do |socket, context|
+  puts "=== Nouvelle connexion WebSocket sur /record ==="
+  
+  token = context.ws_route_lookup.params["token"]?
+  unless token == "secret_token_123"
+    socket.close
+    next
+  end
+  
+  API.sockets << socket
+  if API.sockets.size == 1
+    puts "=== Premier utilisateur connecté, démarrage d'une nouvelle session ==="
+    API.recorder.start_new_session
+  end
+  
+  API.recorders << socket
+  puts "=== Recorder authentifié et connecté (total users: #{API.sockets.size}) ==="
+  
+  socket.on_close do
+    API.sockets.delete(socket)
+    API.recorders.delete(socket)
+    
+    if API.sockets.empty?
+      puts "=== Dernier utilisateur déconnecté, fin de la session ==="
+      API.recorder.end_current_session
+    end
+    puts "=== Socket closed (remaining users: #{API.sockets.size}) ==="
+  end
 end
+
+# Routes du recorder
+get "/api/stats" do |env|
+  env.response.content_type = "application/json"
+  API.recorder.get_stats.to_json
+end
+
+get "/api/sessions" do |env|
+  env.response.content_type = "application/json"
+  API.recorder.get_sessions.to_json
+end
+
+get "/api/events/recent" do |env|
+  env.response.content_type = "application/json"
+  API.recorder.get_recent_events.to_json
+end
+
+get "/api/sessions/:id/events" do |env|
+  session_id = env.params.url["id"]
+  env.response.content_type = "application/json"
+  API.recorder.get_session_events(session_id).to_json
+end
+
+get "/api/current-session" do |env|
+  env.response.content_type = "application/json"
+  if current = API.recorder.get_current_session
+    current.to_json
+  else
+    "{}"
+  end
+end
+
+# Configuration du port
+port = if ARGV.includes?("--port")
+  port_index = ARGV.index("--port")
+  if port_index && (port_index + 1) < ARGV.size
+    ARGV[port_index + 1].to_i
+  else
+    3001
+  end
+else
+  3001
+end
+
+Kemal.config.port = port
+puts "=== Démarrage du serveur principal sur le port #{port} ==="
+
+# Démarrer le serveur
+Kemal.run

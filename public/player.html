@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poietic Generator Player</title>
+    <link rel="stylesheet" href="/css/player-style.css?v=<%= Time.utc.to_unix %>">
+</head>
+<body>
+    <div class="container">
+        <!-- Colonne gauche / Partie haute -->
+        <div class="control-panel left-panel">
+            <select id="session-select" class="control-item">
+                <option value="">Sélectionner une session...</option>
+            </select>
+        </div>
+
+        <!-- Zone centrale (grille) -->
+        <div class="grid-container">
+            <div id="poietic-grid"></div>
+        </div>
+
+        <!-- Colonne droite / Partie basse -->
+        <div class="control-panel right-panel">
+            <div class="playback-controls">
+                <button id="btn-reset" class="control-btn">⏮</button>
+                <button id="btn-play" class="control-btn">▶</button>
+                <button id="btn-pause" class="control-btn">⏸</button>
+            </div>
+            <div class="progress-container">
+                <input type="range" id="progress-bar" min="0" max="100" value="0" class="progress">
+                <div class="time-display">
+                    <span id="current-time">00:00</span> / <span id="total-time">00:00</span>
+                </div>
+            </div>
+            <div class="speed-control">
+                <select id="playback-speed" class="control-item">
+                    <option value="0.5">0.5×</option>
+                    <option value="1.0" selected>1.0×</option>
+                    <option value="2.0">2.0×</option>
+                    <option value="5.0">5.0×</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <script src="/js/poietic-player.js?v=<%= Time.utc.to_unix %>"></script>
+</body>
+</html>

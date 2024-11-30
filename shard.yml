@@ -1,8 +1,8 @@
 name: poietic-generator-api
 version: 0.1.0
 authors:
-  - Your Name <olivierauber2@gmail.com>
-description: A Poietic Generator implementation with WebSocket support
+  - Olivier Auber <olivierauber2@gmail.com>
+description: A new version of the Poietic Generator with WebSocket support
 
 targets:
   poietic-generator:
@@ -15,5 +15,12 @@ dependencies:
     github: kemalcr/kemal
   msgpack:
     github: crystal-community/msgpack-crystal
+  db:
+    github: crystal-lang/crystal-db
+  sqlite3:
+    github: crystal-lang/crystal-sqlite3
+  cairo:
+    github: TamasSzekeres/cairo-cr
+    version: ~> 1.0.3
 
 license: MIT
