@@ -5,19 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poietic Generator Player</title>
     <link rel="stylesheet" href="/css/player-style.css?v=<%= Time.utc.to_unix %>">
+    <script type="module" src="/js/poietic-player.js?v=<%= Time.utc.to_unix %>"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
     <div class="container">
         <!-- Colonne gauche / Partie haute -->
         <div class="control-panel left-panel">
+            <div class="session-label">Select a session</div>
             <select id="session-select" class="control-item">
-                <option value="">Sélectionner une session...</option>
+                <option value="">Select a session...</option>
             </select>
+            <div class="share-button">
+                <svg class="share-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <circle cx="6" cy="12" r="3" fill="currentColor"/>
+                    <circle cx="16" cy="18" r="3" fill="currentColor"/>
+                    <circle cx="16" cy="6" r="3" fill="currentColor"/>
+                    <line x1="6" y1="12" x2="16" y2="18" 
+                          stroke="currentColor" 
+                          stroke-width="2"
+                          stroke-linecap="round"/>
+                    <line x1="6" y1="12" x2="16" y2="6" 
+                          stroke="currentColor" 
+                          stroke-width="2"
+                          stroke-linecap="round"/>
+                </svg>
+            </div>
         </div>
 
         <!-- Zone centrale (grille) -->
         <div class="grid-container">
-            <div id="poietic-grid"></div>
+            <div class="main-zone">
+                <div id="poietic-grid"></div>
+                <div id="player-overlay">
+                    <div class="player-overlay-title">Poietic Generator v.5</div>
+                    <div class="player-overlay-subtitle">Pixel Love since 1986</div>
+                    <div class="player-overlay-message">
+                        <a href="http://localhost:3001" class="play-link">PLAY</a>
+                    </div>
+                    <div class="player-overlay-footer">Copyleft, Free Art License</div>
+                </div>
+            </div>
         </div>
 
         <!-- Colonne droite / Partie basse -->
@@ -43,6 +71,5 @@
             </div>
         </div>
     </div>
-    <script src="/js/poietic-player.js?v=<%= Time.utc.to_unix %>"></script>
 </body>
 </html>

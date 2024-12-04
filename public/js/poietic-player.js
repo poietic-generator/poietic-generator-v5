@@ -1,3 +1,5 @@
+import { PlayerShareManager } from './poietic-player-share.js';
+
 class PoieticPlayer {
     constructor() {
         // État du player
@@ -29,14 +31,22 @@ class PoieticPlayer {
             gridContainer: document.getElementById('poietic-grid')
         };
 
-        console.log('Initialisation du player');
-
         this.initializeGrid();
         this.bindEvents();
         this.loadSessions();
         this.lastTimestamp = null;
         this.animationFrameId = null;
         this.eventLoop = null;
+
+        // Ajouter l'overlay au DOM
+        const mainZone = document.querySelector('.main-zone');
+        const overlay = document.createElement('div');
+        overlay.id = 'player-overlay';
+        mainZone.appendChild(overlay);
+
+        this.showOverlay(); // Afficher l'overlay initialement
+
+        this.shareManager = new PlayerShareManager(this);
     }
 
     initializeGrid() {
@@ -123,16 +133,27 @@ class PoieticPlayer {
             const sessions = await response.json();
             this.state.sessions = sessions;
 
-            // Mise à jour du menu déroulant
-            this.elements.sessionSelect.innerHTML = `
-                <option value="">Sélectionner une session...</option>
-                ${sessions.map(session => `
+            this.elements.sessionSelect.innerHTML = sessions.map(session => {
+                const startTime = new Date(session.start_time);
+                const endTime = session.end_time ? new Date(session.end_time) : startTime;
+                const duration = endTime - startTime;
+                
+                const dateStr = startTime.toISOString().slice(0,10).replace(/-/g,'/');
+                const timeStr = startTime.toTimeString().slice(0,8);
+                const durationStr = new Date(duration).toISOString().slice(11,19);
+
+                return `
                     <option value="${session.id}">
-                        Session ${new Date(session.start_time).toLocaleString()}
-                        (${session.event_count} événements)
+                        ${dateStr} - ${timeStr} | duration: ${durationStr} | users: ${session.user_count}
                     </option>
-                `).join('')}
-            `;
+                `;
+            }).join('');
+
+            if (sessions.length > 0) {
+                const lastSession = sessions[0];
+                this.elements.sessionSelect.value = lastSession.id;
+                this.loadSession(lastSession.id);
+            }
         } catch (error) {
             console.error('Erreur lors du chargement des sessions:', error);
         }
@@ -142,23 +163,6 @@ class PoieticPlayer {
         fetch(`/api/player/sessions/${sessionId}/events`)
             .then(response => response.json())
             .then(events => {
-                // Logs pour analyser les timestamps
-                const firstEvent = events[0];
-                const lastEvent = events[events.length - 1];
-                console.log('=== Analyse des timestamps ===');
-                console.log('Premier événement:', {
-                    type: firstEvent.type,
-                    timestamp: firstEvent.timestamp,
-                    date: new Date(firstEvent.timestamp).toISOString()
-                });
-                console.log('Dernier événement:', {
-                    type: lastEvent.type,
-                    timestamp: lastEvent.timestamp,
-                    date: new Date(lastEvent.timestamp).toISOString()
-                });
-                console.log('Durée réelle de la session:', 
-                    (lastEvent.timestamp - firstEvent.timestamp) / 1000, 'secondes');
-                
                 this.state.events = events;
                 this.state.currentEventIndex = 0;
                 this.initializeFromEvents();
@@ -181,27 +185,22 @@ class PoieticPlayer {
     }
 
     play() {
-        console.log('Play demandé');
         if (!this.state.currentSession) {
-            console.error('Pas de session sélectionnée');
             return;
         }
         
         if (this.state.currentEventIndex >= this.state.events.length) {
-            console.log('Fin de session atteinte, retour au début');
             this.reset();
         }
         
-        console.log('Démarrage lecture à l\'index:', this.state.currentEventIndex);
+        this.hideOverlay();
         
         this.state.isPlaying = true;
         this.state.playStartTime = Date.now() - this.state.elapsedTime;
         this.elements.playButton.disabled = true;
         this.elements.pauseButton.disabled = false;
         
-        // Démarrer la boucle de mise à jour du temps
         this.startTimeLoop();
-        // Démarrer la boucle d'événements
         this.startEventLoop();
     }
 
@@ -216,10 +215,11 @@ class PoieticPlayer {
             const now = Date.now();
             this.state.elapsedTime = (now - this.state.playStartTime) * this.state.playbackSpeed;
 
-            // Si on dépasse la durée totale, arrêter la lecture
+            // Si on dépasse la durée totale, arrêter la lecture et montrer l'overlay
             if (this.state.elapsedTime >= this.state.sessionDuration) {
                 this.pause();
                 this.state.elapsedTime = this.state.sessionDuration;
+                this.showOverlay();
             }
 
             this.updateTimeDisplay();
@@ -239,16 +239,13 @@ class PoieticPlayer {
         let lastTimestamp = Date.now();
         let firstEventTime = this.state.events[0].timestamp;
         let eventCount = 0;
-        let totalDelay = 0;
         
+        // Garder uniquement les stats périodiques importantes
         const statsInterval = setInterval(() => {
             if (eventCount > 0) {
-                console.log('=== Statistiques de lecture ===', {
+                console.log('=== Progression ===', {
                     vitesse: this.state.playbackSpeed,
-                    delaiMoyen: totalDelay / eventCount,
                     evenementsTraites: eventCount,
-                    tempsEcoule: this.state.elapsedTime / 1000,
-                    dureeTotale: this.state.sessionDuration / 1000,
                     evenementsRestants: this.state.events.length - this.state.currentEventIndex
                 });
             }
@@ -310,47 +307,38 @@ class PoieticPlayer {
 
     processNextEvent() {
         if (this.state.currentEventIndex >= this.state.events.length) {
-            console.log('Dernier événement atteint');
             this.pause();
+            this.showOverlay(); // Afficher l'overlay à la fin de la session
             return;
         }
 
         const currentEvent = this.state.events[this.state.currentEventIndex];
-        
-        // Appliquer l'événement
         this.applyEvent(currentEvent);
         this.state.currentEventIndex++;
     }
 
     applyEvent(event) {
-        console.log('Application événement:', event.type);
-        
+        // Retirer tous les console.log d'événements individuels
         switch (event.type) {
             case 'initial_state':
                 this.applyInitialState(event);
                 break;
-            case 'cell_update':
-                this.applyCellUpdate(event);
+            case 'zoom_update':
+                this.applyZoomUpdate(event);
                 break;
             case 'user_left':
                 this.applyUserLeft(event);
                 break;
-            case 'zoom_update':
-                console.log('Traitement zoom_update:', event);
-                this.applyZoomUpdate(event);
-                break;
-            case 'session_start':
-                console.log('Début de session');
+            case 'cell_update':
+                this.applyCellUpdate(event);
                 break;
             case 'session_end':
-                console.log('Fin de session');
                 this.pause();
                 break;
         }
     }
 
     pause() {
-        console.log('Pause demandée');
         this.state.isPlaying = false;
         
         if (this.eventLoop) {
@@ -367,18 +355,19 @@ class PoieticPlayer {
     }
 
     reset() {
-        console.log('Reset demandé');
         this.pause();
         this.state.currentEventIndex = 0;
         this.clearGrid();
         
         const initialEvent = this.state.events.find(e => e.type === 'initial_state');
         if (initialEvent) {
-            console.log('Application état initial');
             this.applyInitialState(initialEvent);
         }
         
         this.updateTimeDisplay();
+        
+        // Réafficher l'overlay
+        this.showOverlay();
     }
 
     updatePlaybackSpeed() {
@@ -451,7 +440,7 @@ class PoieticPlayer {
     }
 
     applyInitialState(event) {
-        console.log('Application état initial:', event);
+        // Retirer le console.log
         this.state.gridSize = event.grid_size;
         
         // Nettoyer l'état précédent
@@ -545,9 +534,7 @@ class PoieticPlayer {
     }
 
     applyZoomUpdate(event) {
-        console.log('Mise à jour du zoom:', event);
-        
-        // Mettre à jour la taille de la grille
+        // Retirer le console.log
         this.state.gridSize = event.grid_size;
         
         // Mettre à jour les couleurs des utilisateurs
@@ -604,6 +591,20 @@ class PoieticPlayer {
         }
         
         this.updateTimeDisplay();
+    }
+
+    showOverlay() {
+        const overlay = document.getElementById('player-overlay');
+        if (overlay) {
+            overlay.classList.add('visible');
+        }
+    }
+
+    hideOverlay() {
+        const overlay = document.getElementById('player-overlay');
+        if (overlay) {
+            overlay.classList.remove('visible');
+        }
     }
 }
 // Initialisation au chargement de la page

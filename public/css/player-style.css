@@ -36,6 +36,14 @@ body {
     width: 100vh;
 }
 
+.main-zone {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+}
+
 #poietic-grid {
     aspect-ratio: 1;
     height: 100%;
@@ -53,11 +61,49 @@ body {
         width: 100vw;
         height: calc((100vh - 100vw) / 2);
         min-height: min-content;
+        padding: 0.5rem 0;
+        align-items: center;
+        justify-content: center;
     }
 
     .grid-container {
         height: 100vw;
         width: 100vw;
+    }
+
+    .main-zone {
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid #333;
+        border-bottom: 1px solid #333;
+    }
+
+    .control-item, 
+    .progress-container,
+    .speed-control,
+    .playback-controls {
+        width: 90vw;
+        max-width: 90vw;
+        margin: 0 auto;
+    }
+
+    .playback-controls {
+        display: flex;
+        justify-content: center;
+        gap: 0.25rem;
+        margin-bottom: 0.25rem;
+        padding: 0;
+    }
+
+    .time-display {
+        margin-top: 0.1rem;
+        text-align: center;
+    }
+
+    select.control-item,
+    #playback-speed {
+        width: 90vw;
+        margin: 0 auto;
     }
 }
 
@@ -66,7 +112,7 @@ body {
     .control-panel {
         display: none;
     }
-    
+
     .grid-container {
         width: 100vmin;
         height: 100vmin;
@@ -78,7 +124,7 @@ body {
     display: flex;
     justify-content: center;
     gap: 0.25rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .control-btn {
@@ -96,32 +142,29 @@ body {
     background: #333;
 }
 
-/* Barre de progression */
-.progress-container {
-    margin: 0.5rem 0;
-}
-
+/* Barre de progression simplifiée */
 .progress {
     width: 100%;
-    height: 20px;
+    height: 2px;
     background: #333;
     border: none;
-    border-radius: 4px;
+    border-radius: 0;
     -webkit-appearance: none;
+    margin: 10px 0;
 }
 
 .progress::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 10px;
+    height: 10px;
     background: white;
     border-radius: 50%;
     cursor: pointer;
 }
 
 .progress::-moz-range-thumb {
-    width: 15px;
-    height: 15px;
+    width: 10px;
+    height: 10px;
     background: white;
     border-radius: 50%;
     cursor: pointer;
@@ -173,4 +216,250 @@ body {
     width: 100%;
     height: 100%;
     transition: background-color 0.3s ease;
+}
+
+/* Overlay pour le player */
+#player-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 2000;
+    display: none;
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+    opacity: 0;
+    transition: opacity 0.3s ease-in;
+}
+
+/* Styles pour les textes de l'overlay */
+.player-overlay-title {
+    position: absolute;
+    top: 10px;
+    left: 0;
+    width: 100%;
+    color: white; 
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.player-overlay-subtitle {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    width: 100%;
+    color: white; 
+    font-size: 28px;
+    font-family: 'Edwardian Script ITC', 'Brush Script MT', cursive;
+    text-align: center;
+}
+
+.player-overlay-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white; 
+    font-size: 30px;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+}
+
+.player-overlay-footer {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    width: 100%;
+    color: white; 
+    font-size: 12px;
+    text-align: center;
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+    font-weight: normal;
+}
+
+/* Afficher l'overlay quand nécessaire */
+#player-overlay.visible {
+    display: block;
+    opacity: 1;
+}
+
+/* Mode clair */
+body.light-mode .main-zone {
+    border-color: #cccccc;
+}
+
+.play-link {
+    color: white;
+    text-decoration: none;
+}
+
+.play-link:hover {
+    text-decoration: underline;
+}
+
+.session-label {
+    color: white;
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.share-button {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.share-icon {
+    width: 24px;
+    height: 24px;
+    color: white;
+}
+
+/* En mode portrait */
+@media (orientation: portrait) {
+    .control-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+}
+
+/* Styles pour la modal de partage */
+.share-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.share-preview {
+    background: #222;
+    padding: 2rem;
+    border-radius: 8px;
+    position: relative;
+    min-width: 300px;
+}
+
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.share-config {
+    color: white;
+    font-family: Calibri, 'Trebuchet MS', sans-serif;
+}
+
+.share-config h3 {
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.config-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.config-options label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.config-options select {
+    padding: 0.3rem;
+    border-radius: 4px;
+    background: #333;
+    color: white;
+    border: 1px solid #666;
+}
+
+#start-export {
+    width: 100%;
+    padding: 0.5rem;
+    background: #444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.progress-bar {
+    margin-top: 1rem;
+    background: #333;
+    height: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress {
+    height: 100%;
+    background: #666;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.status {
+    text-align: center;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.warning-message {
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.secondary-button {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.secondary-button:hover {
+    background: #5a6268;
 }
