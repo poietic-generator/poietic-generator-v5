@@ -111,10 +111,7 @@ class Grid
   end
 
   private def random_color
-    r = Random.rand(256)
-    g = Random.rand(256)
-    b = Random.rand(256)
-    "rgb(#{r},#{g},#{b})"
+    "#" + "%02x%02x%02x" % [Random.rand(256), Random.rand(256), Random.rand(256)]
   end
 end
 
