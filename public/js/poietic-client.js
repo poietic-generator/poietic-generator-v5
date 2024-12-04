@@ -81,6 +81,8 @@ class PoieticClient {
         this.imageImporter = new ImageImporter(this);
 
         this.shareManager = new ShareManager(this);
+
+        this.lastUpdates = new Map();
     }
 
     initialize() {
@@ -594,6 +596,14 @@ class PoieticClient {
 
     sendCellUpdate(subX, subY, color) {
         if (this.isConnected) {
+            // Vérifier si la dernière mise à jour pour cette cellule est identique
+            const lastUpdateKey = `${subX},${subY}`;
+            const lastUpdate = this.lastUpdates.get(lastUpdateKey);
+
+            if (lastUpdate && lastUpdate.color === color) {
+                return; // Ne pas envoyer si la couleur est la même
+            }
+
             const message = {
                 type: 'cell_update',
                 sub_x: subX,
@@ -601,6 +611,9 @@ class PoieticClient {
                 color: color
             };
             this.socket.send(JSON.stringify(message));
+
+            // Mémoriser la dernière mise à jour
+            this.lastUpdates.set(lastUpdateKey, { color });
         }
     }
 
