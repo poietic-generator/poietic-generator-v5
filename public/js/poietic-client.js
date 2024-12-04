@@ -473,7 +473,7 @@ class PoieticClient {
             
             const ctx = this.gradientPalette.getContext('2d');
             const pixel = ctx.getImageData(x, y, 1, 1).data;
-            this.currentColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+            this.currentColor = this.rgbToHex(pixel[0], pixel[1], pixel[2]);
             
             this.updateColorPreview();
             this.updateUserPalette();
@@ -487,7 +487,7 @@ class PoieticClient {
             
             const ctx = this.userPalette.getContext('2d');
             const pixel = ctx.getImageData(x, y, 1, 1).data;
-            this.currentColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+            this.currentColor = this.rgbToHex(pixel[0], pixel[1], pixel[2]);
             
             this.updateColorPreview();
             this.updateUserPalette();
@@ -504,8 +504,12 @@ class PoieticClient {
         const subY = Math.floor(y / (rect.height / 20));
         const subCell = cell.children[subY * 20 + subX];
         if (subCell) {
-            const borrowedColor = subCell.style.backgroundColor;
-            this.updateCurrentColor(borrowedColor);
+            const computedStyle = window.getComputedStyle(subCell);
+            const rgb = computedStyle.backgroundColor.match(/\d+/g);
+            if (rgb) {
+                const borrowedColor = this.rgbToHex(parseInt(rgb[0]), parseInt(rgb[1]), parseInt(rgb[2]));
+                this.updateCurrentColor(borrowedColor);
+            }
         }
     }
 
@@ -522,10 +526,20 @@ class PoieticClient {
             const r = Math.floor(Math.random() * 256);
             const g = Math.floor(Math.random() * 256);
             const b = Math.floor(Math.random() * 256);
-            return `rgb(${r},${g},${b})`;
+            return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
         });
         this.cache.set(cacheKey, newColors);
         return newColors.pop();
+    }
+
+    // Nouvelle fonction utilitaire pour parser les couleurs hex
+    parseHex(color) {
+        const hex = color.replace('#', '');
+        return [
+            parseInt(hex.substr(0, 2), 16),
+            parseInt(hex.substr(2, 2), 16),
+            parseInt(hex.substr(4, 2), 16)
+        ];
     }
 
     // SECTION: Gestion du dessin
@@ -1284,13 +1298,13 @@ class PoieticClient {
         try {
             // Dégradé horizontal (couleurs)
             const gradientH = ctx.createLinearGradient(0, 0, rect.width, 0);
-            gradientH.addColorStop(0, "rgb(255, 0, 0)");      // Rouge
-            gradientH.addColorStop(0.17, "rgb(255, 255, 0)"); // Jaune
-            gradientH.addColorStop(0.33, "rgb(0, 255, 0)");   // Vert
-            gradientH.addColorStop(0.5, "rgb(0, 255, 255)");  // Cyan
-            gradientH.addColorStop(0.67, "rgb(0, 0, 255)");   // Bleu
-            gradientH.addColorStop(0.83, "rgb(255, 0, 255)"); // Magenta
-            gradientH.addColorStop(1, "rgb(255, 0, 0)");      // Rouge
+            gradientH.addColorStop(0, "#FF0000");    // Rouge
+            gradientH.addColorStop(0.17, "#FFFF00"); // Jaune
+            gradientH.addColorStop(0.33, "#00FF00"); // Vert
+            gradientH.addColorStop(0.5, "#00FFFF");  // Cyan
+            gradientH.addColorStop(0.67, "#0000FF"); // Bleu
+            gradientH.addColorStop(0.83, "#FF00FF"); // Magenta
+            gradientH.addColorStop(1, "#FF0000");    // Rouge
 
             // Appliquer le dégradé horizontal
             ctx.fillStyle = gradientH;
@@ -1313,6 +1327,12 @@ class PoieticClient {
         } catch (error) {
             console.error('Erreur lors du dessin du gradient:', error);
         }
+    }
+
+    // Modifier rgbToHsl pour accepter une couleur hex
+    hexToHsl(hexColor) {
+        const [r, g, b] = this.parseHex(hexColor);
+        return this.rgbToHsl(r, g, b);
     }
 
     // Nouvelle fonction utilitaire pour convertir RGB en HSL
@@ -1388,9 +1408,9 @@ class PoieticClient {
 
         // Ajouter des couleurs par défaut si nécessaire
         if (colors.size === 0) {
-            colors.add('rgb(255, 0, 0)');
-            colors.add('rgb(0, 255, 0)');
-            colors.add('rgb(0, 0, 255)');
+            colors.add('#FF0000');
+            colors.add('#00FF00');
+            colors.add('#0000FF');
         }
 
         // Convertir les couleurs en tableau et trier
@@ -1435,6 +1455,11 @@ class PoieticClient {
             this.sendUpdate(cell);
             this.updateUserPalette();
         }
+    }
+
+    // Nouvelle fonction utilitaire pour convertir RGB en HEX
+    rgbToHex(r, g, b) {
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 }
 
