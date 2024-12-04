@@ -171,7 +171,7 @@ export class ImageImporter {
             const r = pixels[i];
             const g = pixels[i + 1];
             const b = pixels[i + 2];
-            const color = `rgb(${r},${g},${b})`;
+            const color = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 
             setTimeout(() => {
                 const subCell = cell.children[pos.y * 20 + pos.x];
