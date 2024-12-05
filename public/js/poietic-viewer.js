@@ -1,6 +1,6 @@
 class PoieticViewer {
     constructor(gridId = 'poietic-grid', isObserver = true) {
-        const instanceId = `${gridId}-${Math.random().toString(36).substr(2, 9)}`;
+        const instanceId = `viewer-${Math.random().toString(36).substr(2, 9)}`;
         
         if (!window.poieticViewerInstances) {
             window.poieticViewerInstances = {};
@@ -74,15 +74,14 @@ class PoieticViewer {
     connect() {
         if (this.isConnected) return;
 
-        const mode = this.isObserver ? 'full' : '';
-        const url = `ws://localhost:3001/updates${mode ? '?mode=' + mode : ''}`;
-        console.log(`Attempting WebSocket connection to ${url}`);
+        const url = `ws://localhost:3001/updates?mode=full&type=observer&instanceId=${this.instanceId}`;
+        console.log(`Attempting WebSocket connection as viewer: ${url}`);
         
         try {
             this.socket = new WebSocket(url);
             
             this.socket.onopen = () => {
-                console.log(`WebSocket connection established in ${this.isObserver ? 'observer' : 'user'} mode`);
+                console.log('WebSocket connection established in viewer mode');
                 this.isConnected = true;
             };
 
@@ -94,11 +93,12 @@ class PoieticViewer {
                     timestamp: new Date().toISOString()
                 });
                 this.isConnected = false;
-                this.resetViewerState();
                 
                 setTimeout(() => {
-                    console.log('Attempting to reconnect...');
-                    this.connect();
+                    if (!this.isConnected) {
+                        console.log('Attempting to reconnect...');
+                        this.connect();
+                    }
                 }, 1000);
             };
 
@@ -113,7 +113,7 @@ class PoieticViewer {
             this.socket.onmessage = (event) => {
                 try {
                     const message = JSON.parse(event.data);
-                    console.log('Received message:', message.type);
+                    console.log('Received message:', message.type, message);
 
                     switch (message.type) {
                         case 'initial_state':
@@ -194,6 +194,7 @@ class PoieticViewer {
     }
 
     handleUserLeft(message) {
+        console.log('User left:', message.user_id);
         if (message.user_id) {
             this.removeUser(message.user_id);
         }
@@ -276,6 +277,7 @@ class PoieticViewer {
     }
 
     removeUser(userId) {
+        console.log(`Removing user ${userId}`);
         const cell = this.cells.get(userId);
         if (cell) {
             this.grid.removeChild(cell);
@@ -332,7 +334,7 @@ class PoieticViewer {
 }
 
 // Initialisation pour viewer.html
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing default viewer');
-    new PoieticViewer('poietic-grid', true);  // Force le mode observer
-});
+//document.addEventListener('DOMContentLoaded', () => {
+//    console.log('DOM loaded, initializing viewer in full mode');
+//    new PoieticViewer('poietic-grid', true);
+//});

@@ -16,9 +16,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof PoieticViewer !== 'undefined') {
                 console.log('PoieticViewer is defined');
-                window.poieticViewer = new PoieticViewer();
+                window.poieticViewer = new PoieticViewer('poietic-grid', true);
             } else {
-                console.error('PoieticViewer is not defined. Make sure poietic-viewer.js is loaded correctly.');
+                console.error('PoieticViewer is not defined');
             }
         });
     </script>
