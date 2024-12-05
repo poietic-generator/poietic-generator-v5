@@ -94,16 +94,16 @@
         /* Ajustements spécifiques pour le panel viewer */
         .viewer-content {
             background-color: black;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            padding: 0 !important;
+            width: 100% !important;
+            height: calc(100% - 32px) !important;
         }
 
-        .viewer-content > div {
-            position: relative;
-            aspect-ratio: 1;
-            max-width: 100%;
-            max-height: 100%;
+        .viewer-content iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: black;
         }
     </style>
 </head>
@@ -114,6 +114,6 @@
         <button class="control-button" id="session-btn">Session Data</button>
     </div>
     <div id="dashboard-container"></div>
-    <script src="/js/poietic-monitoring.js"></script>
+    <script src="/js/poietic-monitoring.js?v=<%= Time.utc.to_unix %>"></script>
 </body>
 </html>

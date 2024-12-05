@@ -7,13 +7,36 @@ document.write(`
 class PoieticMonitoring {
     constructor() {
         this.panels = new Map();
+        this.listeners = new Set();
         this.initializeButtons();
+        this.initWebSocket();
     }
 
     initializeButtons() {
         document.getElementById('viewer-btn').addEventListener('click', () => this.createPanel('viewer'));
         document.getElementById('chromatic-btn').addEventListener('click', () => this.createPanel('chromatic'));
         document.getElementById('session-btn').addEventListener('click', () => this.createPanel('session'));
+    }
+
+    initWebSocket() {
+        this.socket = new WebSocket('ws://localhost:3001/updates?mode=monitoring');
+        
+        this.socket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            this.notifyListeners(message);
+        };
+    }
+
+    addListener(callback) {
+        this.listeners.add(callback);
+    }
+
+    removeListener(callback) {
+        this.listeners.delete(callback);
+    }
+
+    notifyListeners(message) {
+        this.listeners.forEach(callback => callback(message));
     }
 
     createPanel(type) {
@@ -45,6 +68,8 @@ class PoieticMonitoring {
 
         document.getElementById('dashboard-container').appendChild(panel);
         this.makeDraggable(panel);
+
+        // Initialiser le contenu du panel
         this.initializePanelContent(type, content);
     }
 
@@ -99,10 +124,12 @@ class PoieticMonitoring {
                 new PoieticViewerPanel(container);
                 break;
             case 'chromatic':
-                new PoieticChromaticPanel(container);
+                const chromaticPanel = new PoieticChromaticPanel(container);
+                this.addListener((message) => chromaticPanel.handleMessage(message));
                 break;
             case 'session':
-                new PoieticSessionPanel(container);
+                const sessionPanel = new PoieticSessionPanel(container);
+                this.addListener((message) => sessionPanel.updateStats(message));
                 break;
         }
     }
@@ -112,3 +139,4 @@ class PoieticMonitoring {
 document.addEventListener('DOMContentLoaded', () => {
     window.poieticMonitoring = new PoieticMonitoring();
 }); 
+

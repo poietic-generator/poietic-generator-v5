@@ -2,21 +2,12 @@ class PoieticSessionPanel {
     constructor(container) {
         this.container = container;
         this.setupDisplay();
-        this.initWebSocket();
     }
 
     setupDisplay() {
         this.statsContainer = document.createElement('div');
         this.statsContainer.style.padding = '10px';
         this.container.appendChild(this.statsContainer);
-    }
-
-    initWebSocket() {
-        this.socket = new WebSocket('ws://localhost:3001/updates?mode=monitoring');
-        this.socket.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            this.updateStats(message);
-        };
     }
 
     updateStats(message) {
