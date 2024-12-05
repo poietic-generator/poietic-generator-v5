@@ -16,7 +16,7 @@ class Grid
 
   def set_user_position(user_id : String, position : Tuple(Int32, Int32))
     @user_positions[user_id] = position
-    @initial_colors[user_id] = generate_initial_colors unless @initial_colors.has_key?(user_id)
+    @initial_colors[user_id] = generate_initial_colors(user_id) unless @initial_colors.has_key?(user_id)
     unless @sub_cell_states.has_key?(user_id)
       @sub_cell_states[user_id] = Hash(Tuple(Int32, Int32), String).new
       400.times do |i|
@@ -106,12 +106,48 @@ class Grid
     n.even? ? n + 1 : n
   end
 
-  private def generate_initial_colors
-    Array.new(400) { random_color }
+  private def generate_initial_colors(user_id : String)
+    # Créer un générateur de nombres pseudo-aléatoires avec l'UUID comme seed
+    seed = user_id.bytes.reduce(0) { |acc, b| (acc << 8) + b }
+    rng = Random.new(seed)
+    
+    # Générer une couleur de base pour cet utilisateur
+    base_h = rng.rand # Teinte de base (0.0 - 1.0)
+    base_s = 0.6 + (rng.rand * 0.4) # Saturation (0.6 - 1.0)
+    base_l = 0.4 + (rng.rand * 0.2) # Luminosité (0.4 - 0.6)
+    
+    # Générer 400 variations autour de cette couleur
+    Array.new(400) do |i|
+      # Faire varier la teinte autour de la teinte de base
+      h = (base_h + (rng.rand * 0.2) - 0.1) % 1.0
+      # Faire varier la saturation
+      s = (base_s + (rng.rand * 0.2) - 0.1).clamp(0.0, 1.0)
+      # Faire varier la luminosité
+      l = (base_l + (rng.rand * 0.2) - 0.1).clamp(0.0, 1.0)
+      
+      # Convertir HSL en RGB puis en hex
+      hsl_to_hex(h, s, l)
+    end
   end
 
-  private def random_color
-    "#" + "%02x%02x%02x" % [Random.rand(256), Random.rand(256), Random.rand(256)]
+  private def hue_to_rgb(p : Float64, q : Float64, t : Float64) : Float64
+    t += 1.0 if t < 0
+    t -= 1.0 if t > 1
+    return p + (q - p) * 6 * t if t < 1.0/6
+    return q if t < 1.0/2
+    return p + (q - p) * (2.0/3 - t) * 6 if t < 2.0/3
+    return p
+  end
+
+  private def hsl_to_hex(h : Float64, s : Float64, l : Float64) : String
+    q = l < 0.5 ? l * (1 + s) : l + s - l * s
+    p = 2 * l - q
+
+    r = (hue_to_rgb(p, q, h + 1.0/3) * 255).round.to_i
+    g = (hue_to_rgb(p, q, h) * 255).round.to_i
+    b = (hue_to_rgb(p, q, h - 1.0/3) * 255).round.to_i
+
+    "#%02x%02x%02x" % [r, g, b]
   end
 end
 
@@ -119,6 +155,7 @@ class Session
   INACTIVITY_TIMEOUT = 3.minutes
 
   property users : Hash(String, HTTP::WebSocket)
+  property observers : Hash(String, HTTP::WebSocket)
   property grid : Grid
   property user_colors : Hash(String, String)
   property last_activity : Hash(String, Time)
@@ -126,6 +163,7 @@ class Session
 
   def initialize
     @users = Hash(String, HTTP::WebSocket).new
+    @observers = Hash(String, HTTP::WebSocket).new
     @grid = Grid.new
     @user_colors = Hash(String, String).new
     @last_activity = Hash(String, Time).new
@@ -145,31 +183,39 @@ class Session
     user_id
   end
 
-  def add_observer(socket : HTTP::WebSocket)
+  def add_observer(socket : HTTP::WebSocket) : String
     observer_id = "observer_#{UUID.random}"
-    @users[observer_id] = socket
+    @observers[observer_id] = socket
     send_initial_state(observer_id)
     observer_id
+  end
+
+  def remove_observer(observer_id : String)
+    @observers.delete(observer_id)
+    puts "=== Observer removed: #{observer_id} ==="
   end
 
   def send_initial_state(user_id : String)
     grid_size = calculate_grid_size
     
-    # État pour le client
-    client_state = {
+    # État commun pour tous les clients
+    base_state = {
       type: "initial_state",
       grid_size: grid_size,
       grid_state: @grid.to_json,
       user_colors: @user_colors,
-      sub_cell_states: serialize_sub_cell_states,
-      my_user_id: user_id
-    }.to_json
-    
-    # Envoyer au client
-    @users[user_id].send(client_state)
-    
-    # État pour le recorder (format différent)
-    unless user_id.starts_with?("observer_")
+      sub_cell_states: serialize_sub_cell_states
+    }
+
+    if user_id.starts_with?("observer_")
+      # Pour les observateurs, on envoie juste l'état sans my_user_id
+      @observers[user_id].send(base_state.to_json)
+    else
+      # Pour les utilisateurs réguliers, on ajoute my_user_id
+      client_state = base_state.merge({my_user_id: user_id})
+      @users[user_id].send(client_state.to_json)
+      
+      # Enregistrement pour le recorder
       recorder_state = {
         type: "initial_state",
         timestamp: Time.utc.to_unix_ms,
@@ -223,14 +269,16 @@ class Session
       # Enregistrer d'abord la déconnexion
       API.recorder.record_user_left(user_id)
       
+      # Envoyer la notification avant de supprimer l'utilisateur
+      broadcast_user_left(user_id, position)
+      
       # Puis effectuer les modifications d'état
       @grid.remove_user(user_id)
       @users.delete(user_id)
       @user_colors.delete(user_id)
       @last_activity.delete(user_id)
       
-      # Envoyer les notifications dans l'ordre
-      broadcast_user_left(user_id)
+      # Mettre à jour le zoom après les modifications
       broadcast_zoom_update
       
       # Vérifier si c'était le dernier utilisateur
@@ -264,14 +312,31 @@ class Session
     message = {
       type: "user_left",
       user_id: user_id,
-      position: position
+      position: position,
+      timestamp: Time.utc.to_unix_ms
     }.to_json
+    
+    # S'assurer que le message est envoyé à tous (utilisateurs et observateurs)
     broadcast(message)
   end
 
   def broadcast(message)
+    # Broadcast aux utilisateurs réguliers
     @users.each do |user_id, socket|
-      socket.send(message)
+      begin
+        socket.send(message)
+      rescue ex
+        puts "Error sending to user #{user_id}: #{ex.message}"
+      end
+    end
+
+    # Broadcast aux observateurs (maintenant sans risque de déconnexion)
+    @observers.each do |observer_id, socket|
+      begin
+        socket.send(message)
+      rescue ex
+        puts "Error sending to observer #{observer_id}: #{ex.message}"
+      end
     end
   end
 
@@ -297,12 +362,6 @@ class Session
     broadcast(update_message)
     # Enregistrer l'événement dans le recorder
     API.recorder.record_event(JSON.parse(update_message))
-  end
-
-  def broadcast(message)
-    @users.each do |_, socket|
-      socket.send(message)
-    end
   end
 
   def broadcast_new_user(new_user_id : String)
@@ -497,46 +556,58 @@ get "/images/:file" do |env|
   send_file env, "public/images/#{file}"
 end
 
+get "/autopoietic" do |env|
+  send_file env, "public/autopoietic.html"
+end
+
 ws "/updates" do |socket, context|
   puts "=== Nouvelle connexion WebSocket sur /updates ==="
   
   mode = context.request.query_params["mode"]?
-  is_observer = mode == "full" || mode == "monitoring"
-
-  # Démarrer une nouvelle session si c'est le premier utilisateur régulier
-  if !is_observer && PoieticGenerator.current_session.users.empty?
-    puts "=== Premier utilisateur connecté, démarrage d'une nouvelle session ==="
-    API.recorder.start_new_session
-  end
+  connection_type = context.request.query_params["type"]?
+  is_observer = mode == "full" && connection_type == "observer"
 
   user_id = if is_observer
     puts "=== Adding observer with mode: #{mode} ==="
-    PoieticGenerator.current_session.add_observer(socket)
+    observer_id = PoieticGenerator.current_session.add_observer(socket)
+    puts "=== Observer added with ID: #{observer_id} ==="
+    observer_id
   else
     puts "=== Adding regular user ==="
+    # Démarrer une nouvelle session si c'est le premier utilisateur régulier
+    if PoieticGenerator.current_session.users.empty?
+      puts "=== Premier utilisateur connecté, démarrage d'une nouvelle session ==="
+      API.recorder.start_new_session
+    end
     PoieticGenerator.current_session.add_user(socket)
   end
 
   socket.on_message do |message|
-    parsed_message = JSON.parse(message)
-    if parsed_message["type"] == "cell_update" && !is_observer
-      PoieticGenerator.current_session.update_user_activity(user_id)
-      PoieticGenerator.current_session.handle_cell_update(
-        user_id,
-        parsed_message["sub_x"].as_i,
-        parsed_message["sub_y"].as_i,
-        parsed_message["color"].as_s
-      )
-    elsif parsed_message["type"] == "heartbeat"
-      PoieticGenerator.current_session.update_user_activity(user_id)
+    begin
+      parsed_message = JSON.parse(message)
+      if parsed_message["type"] == "cell_update" && !is_observer
+        PoieticGenerator.current_session.update_user_activity(user_id)
+        PoieticGenerator.current_session.handle_cell_update(
+          user_id,
+          parsed_message["sub_x"].as_i,
+          parsed_message["sub_y"].as_i,
+          parsed_message["color"].as_s
+        )
+      elsif parsed_message["type"] == "heartbeat"
+        PoieticGenerator.current_session.update_user_activity(user_id)
+      end
+    rescue ex
+      puts "Error processing message: #{ex.message}"
     end
   end
 
   socket.on_close do
     puts "=== Socket closed for #{user_id} ==="
-    if !is_observer
+    if is_observer
+      PoieticGenerator.current_session.remove_observer(user_id)
+    else
       PoieticGenerator.current_session.remove_user(user_id)
-      # Terminer la session si c'était le dernier utilisateur régulier
+      # Vérifier si c'était le dernier utilisateur régulier
       if PoieticGenerator.current_session.users.empty?
         puts "=== Dernier utilisateur déconnecté, fin de la session ==="
         API.recorder.end_current_session
