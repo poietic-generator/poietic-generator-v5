@@ -1,12 +1,11 @@
+import { ColorGenerator } from './poietic-color-generator.js';
+
 class PoieticBot {
     constructor() {
         this.instanceId = `bot-${Math.random().toString(36).substr(2, 9)}`;
         
-        // Fermer toute connexion WebSocket existante sur le même endpoint
-        if (window.existingBotSocket) {
-            console.log('Closing existing WebSocket connection');
-            window.existingBotSocket.close();
-            window.existingBotSocket = null;
+        if (window.frameElement) {
+            window.frameElement.dataset.botId = this.instanceId;
         }
 
         this.userGrid = document.getElementById('user-grid');
@@ -32,30 +31,45 @@ class PoieticBot {
         this.initializeBotControls();
     }
 
-    connect() {
-        if (this.socket) {
-            this.socket.close();
-            this.socket = null;
+    cleanupOldConnections() {
+        // Fermer toute connexion existante
+        if (window.existingBotSocket) {
+            try {
+                window.existingBotSocket.close();
+            } catch (e) {
+                console.log('Error closing existing socket:', e);
+            }
+            window.existingBotSocket = null;
         }
+        
+        // Réinitialiser l'état
+        this.userPositions = new Map();
+        this.sub_cell_states = {};
+        this.clearGrid();
+    }
+
+    connect() {
+        this.cleanupOldConnections();
         
         const url = `ws://localhost:3001/updates?mode=bot&instanceId=${this.instanceId}`;
         this.socket = new WebSocket(url);
         window.existingBotSocket = this.socket;
         
         this.socket.onopen = () => {
-            console.log('WebSocket connected');
+            console.log(`Bot ${this.instanceId} connected`);
             this.isConnected = true;
             this.startHeartbeat();
         };
         
         this.socket.onclose = () => {
-            window.existingBotSocket = null;
+            if (window.existingBotSocket === this.socket) {
+                window.existingBotSocket = null;
+            }
             this.handleDisconnection();
         };
-
+        
         this.socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            window.existingBotSocket = null;
+            console.error(`Bot ${this.instanceId} WebSocket error:`, error);
             this.handleDisconnection();
         };
         
@@ -126,22 +140,15 @@ class PoieticBot {
     }
 
     disconnect() {
-        console.log('Disconnecting...');
+        console.log(`Bot ${this.instanceId} disconnecting...`);
         if (this.socket) {
             this.socket.close();
+            if (window.existingBotSocket === this.socket) {
+                window.existingBotSocket = null;
+            }
             this.socket = null;
         }
-        window.existingBotSocket = null;
-        this.isConnected = false;
-        if (this.heartbeatInterval) {
-            clearInterval(this.heartbeatInterval);
-        }
-        
-        // Réinitialiser les états
-        this.myUserId = null;
-        this.userPosition = null;
-        this.userPositions = new Map();
-        this.sub_cell_states = {};
+        this.cleanupOldConnections();
     }
 
     initializeWebSocket() {
@@ -182,12 +189,6 @@ class PoieticBot {
     }
 
     handleMessage(event) {
-        // S'assurer que nous avons une chaîne JSON valide
-        if (typeof event.data !== 'string') {
-            console.error('Invalid message format:', event);
-            return;
-        }
-
         try {
             const message = JSON.parse(event.data);
             console.log('Parsed message:', message);
@@ -195,10 +196,21 @@ class PoieticBot {
             switch (message.type) {
                 case 'initial_state':
                     console.log('Processing initial state...');
-                    // Parse grid state
                     const gridState = JSON.parse(message.grid_state);
                     this.myUserId = message.my_user_id;
                     
+                    // Générer les couleurs initiales avec ColorGenerator
+                    const initialColors = ColorGenerator.generateInitialColors(this.myUserId);
+                    
+                    // Initialiser la grille avec les couleurs générées
+                    for (let y = 0; y < 20; y++) {
+                        for (let x = 0; x < 20; x++) {
+                            const colorIndex = y * 20 + x;
+                            const color = initialColors[colorIndex];
+                            this.updateCell(x, y, color);
+                        }
+                    }
+
                     // Mettre à jour les positions
                     this.userPositions = new Map(Object.entries(gridState.user_positions)
                         .map(([id, pos]) => [id, {x: pos[0], y: pos[1]}]));
@@ -206,14 +218,6 @@ class PoieticBot {
                     if (gridState.user_positions[this.myUserId]) {
                         const pos = gridState.user_positions[this.myUserId];
                         this.userPosition = {x: pos[0], y: pos[1]};
-                    }
-
-                    // Initialiser la grille avec des couleurs aléatoires
-                    for (let x = 0; x < 20; x++) {
-                        for (let y = 0; y < 20; y++) {
-                            const color = `rgb(${Math.random()*255|0},${Math.random()*255|0},${Math.random()*255|0})`;
-                            this.updateCell(x, y, color);
-                        }
                     }
 
                     // Mettre à jour les états des cellules
