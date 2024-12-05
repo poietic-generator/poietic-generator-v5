@@ -301,6 +301,15 @@ body.disconnected #reconnect-button {
     width: 100%;
 }
 
+.replay-link {
+    color: white;
+    text-decoration: none;
+}
+
+.replay-link:hover {
+    text-decoration: underline;
+}
+
 .overlay-footer {
     position: absolute;
     bottom: 10px;

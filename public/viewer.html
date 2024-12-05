@@ -11,15 +11,11 @@
     <div id="qr-overlay">
         <img id="qr-code" src="/images/qr-code.png?v=<%= Time.utc.to_unix %>" alt="QR Code">
     </div>
-    <script src="/js/poietic-viewer.js?v=<%= Time.utc.to_unix %>"></script>
-    <script>
+    <script type="module">
+        import { PoieticViewer } from '/js/poietic-viewer.js?v=<%= Time.utc.to_unix %>';
+        
         document.addEventListener('DOMContentLoaded', function() {
-            if (typeof PoieticViewer !== 'undefined') {
-                console.log('PoieticViewer is defined');
-                window.poieticViewer = new PoieticViewer('poietic-grid', true);
-            } else {
-                console.error('PoieticViewer is not defined');
-            }
+            window.poieticViewer = new PoieticViewer('poietic-grid', true);
         });
     </script>
 </body>

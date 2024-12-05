@@ -1,7 +1,9 @@
-class PoieticViewer {
+import { ColorGenerator } from './poietic-color-generator.js';
+
+export class PoieticViewer {
     constructor(gridId = 'poietic-grid', isObserver = true) {
         const instanceId = `viewer-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         if (!window.poieticViewerInstances) {
             window.poieticViewerInstances = {};
         }
@@ -10,7 +12,7 @@ class PoieticViewer {
         this.gridId = gridId;
         this.isObserver = isObserver;
         this.instanceId = instanceId;
-        
+
         // Initialiser les structures de données
         this.cells = new Map();
         this.userPositions = new Map();
@@ -53,11 +55,11 @@ class PoieticViewer {
             this.socket.close();
             this.socket = null;
         }
-        
+
         if (this.grid) {
             this.grid.innerHTML = '';
         }
-        
+
         this.cells.clear();
         this.userPositions.clear();
         this.userColors.clear();
@@ -65,7 +67,7 @@ class PoieticViewer {
         this.cellSize = 0;
         this.subCellSize = 0;
         this.isConnected = false;
-        
+
         if (this.overlay) {
             this.overlay.classList.add('visible');
         }
@@ -76,10 +78,10 @@ class PoieticViewer {
 
         const url = `ws://localhost:3001/updates?mode=full&type=observer&instanceId=${this.instanceId}`;
         console.log(`Attempting WebSocket connection as viewer: ${url}`);
-        
+
         try {
             this.socket = new WebSocket(url);
-            
+
             this.socket.onopen = () => {
                 console.log('WebSocket connection established in viewer mode');
                 this.isConnected = true;
@@ -93,7 +95,7 @@ class PoieticViewer {
                     timestamp: new Date().toISOString()
                 });
                 this.isConnected = false;
-                
+
                 setTimeout(() => {
                     if (!this.isConnected) {
                         console.log('Attempting to reconnect...');
@@ -146,12 +148,12 @@ class PoieticViewer {
     handleInitialState(message) {
         console.log('Processing initial state');
         this.gridSize = message.grid_size;
-        
+
         // Traiter le grid_state
         if (message.grid_state) {
-            const gridState = typeof message.grid_state === 'string' ? 
+            const gridState = typeof message.grid_state === 'string' ?
                 JSON.parse(message.grid_state) : message.grid_state;
-            
+
             // Mettre à jour les positions des utilisateurs
             if (gridState.user_positions) {
                 Object.entries(gridState.user_positions).forEach(([userId, position]) => {
@@ -160,9 +162,13 @@ class PoieticViewer {
             }
         }
 
-        // Mettre à jour les couleurs des utilisateurs
+        // Générer les couleurs des utilisateurs localement
         if (message.user_colors) {
-            this.userColors = new Map(Object.entries(message.user_colors));
+            this.userColors = new Map();
+            Object.keys(message.user_colors).forEach(userId => {
+                const colors = ColorGenerator.generateInitialColors(userId);
+                this.userColors.set(userId, colors);
+            });
         }
 
         // Mettre à jour les états des sous-cellules
@@ -187,7 +193,7 @@ class PoieticViewer {
     }
 
     handleCellUpdate(message) {
-        if (message.user_id && typeof message.sub_x === 'number' && 
+        if (message.user_id && typeof message.sub_x === 'number' &&
             typeof message.sub_y === 'number' && message.color) {
             this.updateSubCell(message.user_id, message.sub_x, message.sub_y, message.color);
         }
@@ -214,11 +220,11 @@ class PoieticViewer {
     updateCell(userId, x, y) {
         console.log(`Creating/updating cell for user ${userId} at (${x}, ${y})`);
         let cell = this.cells.get(userId);
-        
+
         if (!cell) {
             cell = document.createElement('div');
             cell.className = 'user-cell';
-            
+
             for (let y = 0; y < 20; y++) {
                 for (let x = 0; x < 20; x++) {
                     const subCell = document.createElement('div');
@@ -228,14 +234,14 @@ class PoieticViewer {
                     cell.appendChild(subCell);
                 }
             }
-            
+
             this.grid.appendChild(cell);
             this.cells.set(userId, cell);
         }
 
         this.userPositions.set(userId, {x, y});
         this.positionCell(cell, x, y);
-        
+
         if (this.overlay) {
             this.overlay.classList.remove('visible');
         }
@@ -270,7 +276,7 @@ class PoieticViewer {
         console.log(`Adding new user ${userId} at position (${position[0]}, ${position[1]})`);
         this.userColors.set(userId, color);
         this.updateCell(userId, position[0], position[1]);
-        
+
         if (this.overlay && this.cells.size > 0) {
             this.overlay.classList.remove('visible');
         }
@@ -332,9 +338,3 @@ class PoieticViewer {
         });
     }
 }
-
-// Initialisation pour viewer.html
-//document.addEventListener('DOMContentLoaded', () => {
-//    console.log('DOM loaded, initializing viewer in full mode');
-//    new PoieticViewer('poietic-grid', true);
-//});

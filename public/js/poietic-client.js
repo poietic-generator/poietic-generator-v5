@@ -1,5 +1,7 @@
 import { ImageImporter } from './poietic-import.js';
 import { ShareManager } from './poietic-share.js';
+import { ColorGenerator } from './poietic-color-generator.js';
+import { generateRandomColor } from './poietic-random-color.js';
 
 class PoieticClient {
     constructor() {
@@ -257,16 +259,13 @@ class PoieticClient {
         this.gridSize = state.grid_size;
         this.userColors = new Map(Object.entries(state.user_colors));
         this.myUserId = state.my_user_id;
-        this.initialColors = state.initial_colors ? new Map(Object.entries(state.initial_colors)) : new Map();
+        
+        // Générer les couleurs de la palette
+        this.initialColors = new Map();
+        this.initialColors.set(this.myUserId, ColorGenerator.generateInitialColors(this.myUserId));
     
-        // Initialiser la couleur courante
-        if (this.userColors.has(this.myUserId)) {
-            this.currentColor = this.userColors.get(this.myUserId);
-        } else if (this.initialColors.has(this.myUserId)) {
-            this.currentColor = this.initialColors.get(this.myUserId)[0];
-        } else {
-            this.currentColor = this.getRandomColor();
-        }
+        // Utiliser une couleur aléatoire comme couleur initiale
+        this.currentColor = generateRandomColor();
         this.lastSelectedColor = this.currentColor;
         this.updateColorPreview();
     
