@@ -1,7 +1,6 @@
 export function generateRandomColor() {
-    const hue = Math.floor(Math.random() * 360);    // Teinte aléatoire (0-359)
-    const saturation = 60 + Math.random() * 40;     // Saturation entre 60% et 100%
-    const lightness = 35 + Math.random() * 30;      // Luminosité entre 35% et 65%
-    
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-} 
+    const r = Math.floor(Math.random() * 256);
+    const g = Math.floor(Math.random() * 256);
+    const b = Math.floor(Math.random() * 256);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
