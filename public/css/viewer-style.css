@@ -18,32 +18,6 @@ body, html {
     position: relative;
 }
 
-.user-cell {
-    position: absolute;
-    display: grid;
-    grid-template-columns: repeat(20, 1fr);
-    grid-template-rows: repeat(20, 1fr);
-    overflow: hidden;
-    transition: all 0.3s ease;
-}
-
-.user-cell.highlighted::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 4px solid rgba(255, 255, 255, 0.8);
-    pointer-events: none;
-    z-index: 1000;
-}
-
-.sub-cell {
-    width: 100%;
-    height: 100%;
-}
-
 #qr-overlay {
     position: absolute;
     top: 0;
@@ -65,7 +39,39 @@ body, html {
 }
 
 #qr-code {
-    width: 50%;
-    height: 50%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
+}
+
+.user-cell {
+    position: absolute;
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    grid-template-rows: repeat(20, 1fr);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.sub-cell {
+    width: 100%;
+    height: 100%;
+}
+
+.error-message {
+    position: absolute;
+    background-color: black;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    z-index: 1000;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border: 2px solid white;
 } 
