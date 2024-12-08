@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poietic Generator Player</title>
     <link rel="stylesheet" href="/css/player-style.css?v=<%= Time.utc.to_unix %>">
+    <link rel="stylesheet" href="/css/share-dialog.css?v=<%= Time.utc.to_unix %>">
     <script type="module" src="/js/poietic-player.js?v=<%= Time.utc.to_unix %>"></script>
+    <script type="module" src="/js/poietic-player-share.js?v=<%= Time.utc.to_unix %>"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
@@ -16,7 +18,7 @@
             <select id="session-select" class="control-item">
                 <option value="">Select a session...</option>
             </select>
-            <div class="share-button">
+            <div class="share-button" id="share-button">
                 <svg class="share-icon" viewBox="0 0 24 24" width="24" height="24">
                     <circle cx="6" cy="12" r="3" fill="currentColor"/>
                     <circle cx="16" cy="18" r="3" fill="currentColor"/>

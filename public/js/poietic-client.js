@@ -180,11 +180,13 @@ class PoieticClient {
     // SECTION: Gestion de la connexion WebSocket
     connect() {
         if (this.isConnected) {
+            console.log('Déjà connecté, déconnexion avant reconnexion');
             this.disconnect();
         }
 
         this.socket = new WebSocket('ws://localhost:3001/updates');
         this.socket.onopen = () => {
+            console.log('Connexion WebSocket établie');
             this.isConnected = true;
             this.startHeartbeat();
         };
@@ -193,6 +195,7 @@ class PoieticClient {
             this.handleMessage(message);
         };
         this.socket.onclose = () => {
+            console.log('Connexion WebSocket fermée');
             this.isConnected = false;
             this.disconnectedAt = Date.now();
             this.updateActivityDisplay();
@@ -203,6 +206,7 @@ class PoieticClient {
     }
 
     disconnect() {
+        console.log('Dconnexion...');
         clearInterval(this.heartbeatInterval);
         if (this.socket) {
             this.socket.close();
@@ -227,7 +231,7 @@ class PoieticClient {
                 this.resetInactivityTimer();
                 break;
             case 'new_user':
-                this.addNewUser(message.user_id, message.position);
+                this.addNewUser(message.user_id, message.position, message.color);
                 break;
             case 'user_left':
                 this.removeUser(message.user_id);
@@ -240,7 +244,7 @@ class PoieticClient {
                 this.updateSubCell(message.user_id, message.sub_x, message.sub_y, message.color);
                 break;
             case 'zoom_update':
-                this.handleZoomUpdate(message);
+                this.updateZoom(message.grid_size, message.grid_state, message.user_colors, message.sub_cell_states);
                 break;
             case 'user_disconnected':
                 this.handleUserDisconnected(message);
@@ -250,46 +254,10 @@ class PoieticClient {
         }
     }
 
-    handleZoomUpdate(message) {
-        // Éviter les mises à jour inutiles si la taille de grille n'a pas changé
-        if (this.gridSize === message.grid_size) {
-            const gridState = JSON.parse(message.grid_state);
-            // Mettre à jour uniquement les positions
-            Object.entries(gridState.user_positions).forEach(([userId, position]) => {
-                const cell = this.cells.get(userId);
-                if (cell) {
-                    this.positionCell(cell, position[0], position[1]);
-                }
-            });
-            return;
-        }
-
-        // Si la taille a changé, faire la mise à jour complète
-        this.gridSize = message.grid_size;
-        const gridState = JSON.parse(message.grid_state);
-        
-        // Mettre à jour le layout une seule fois
-        this.updateLayout();
-        
-        // Calculer la nouvelle taille de cellule une seule fois
-        const cellSize = this.drawingArea.clientWidth / this.gridSize;
-        
-        // Mettre à jour toutes les cellules en une seule passe
-        Object.entries(gridState.user_positions).forEach(([userId, position]) => {
-            const cell = this.cells.get(userId);
-            if (cell) {
-                // Appliquer les nouvelles dimensions
-                cell.style.width = `${cellSize}px`;
-                cell.style.height = `${cellSize}px`;
-                // Mettre à jour la position
-                this.positionCell(cell, position[0], position[1]);
-            }
-        });
-    }
-
     // SECTION: Gestion de l'état
     initializeState(state) {
         this.gridSize = state.grid_size;
+        this.userColors = new Map(Object.entries(state.user_colors));
         this.myUserId = state.my_user_id;
         
         // Générer les couleurs de la palette
@@ -305,18 +273,16 @@ class PoieticClient {
         if (this.grid) {
             this.grid.innerHTML = '';
         }
-        
-        // Mise à jour du layout
-        this.updateLayout();
-        
-        // Parser le grid_state qui est une chaîne JSON
-        const gridState = JSON.parse(state.grid_state);
-        
+    
+        // Ajouter ici l'appel à updateLayout
+        this.updateLayout();  // <-- ICI !
+    
         // Initialiser toutes les cellules
+        const gridState = JSON.parse(state.grid_state);
         Object.entries(gridState.user_positions).forEach(([userId, position]) => {
             this.updateCell(userId, position[0], position[1]);
         });
-
+    
         // Initialiser les sous-cellules
         if (state.sub_cell_states) {
             Object.entries(state.sub_cell_states).forEach(([userId, subCells]) => {
@@ -351,40 +317,33 @@ class PoieticClient {
 
     updateCell(userId, x, y) {
         let cell = this.cells.get(userId);
-        const isNewCell = !cell;
-        
-        if (isNewCell) {
+        if (!cell) {
             cell = document.createElement('div');
             cell.className = 'user-cell';
-            
-            // Créer le fragment pour améliorer les performances
-            const fragment = document.createDocumentFragment();
-            const colors = ColorGenerator.generateInitialColors(userId);
-            
-            // Créer toutes les sous-cellules en une fois
-            for (let i = 0; i < 400; i++) {
-                const subCell = document.createElement('div');
-                subCell.className = 'sub-cell';
-                subCell.dataset.x = Math.floor(i / 20).toString();
-                subCell.dataset.y = (i % 20).toString();
-                subCell.style.backgroundColor = colors[i];
-                fragment.appendChild(subCell);
-            }
-            
-            cell.appendChild(fragment);
             this.grid.appendChild(cell);
             this.cells.set(userId, cell);
-            
-            // Ajouter les événements seulement si nécessaire
-            if (userId !== this.myUserId) {
-                cell.addEventListener('click', (event) => this.handleColorBorrowing(event, userId));
-                cell.addEventListener('touchstart', (event) => this.handleColorBorrowing(event, userId));
+        }
+    
+        cell.innerHTML = '';
+        const initialColors = this.initialColors.get(userId) || [];
+        for (let i = 0; i < 20; i++) {
+            for (let j = 0; j < 20; j++) {
+                const subCell = document.createElement('div');
+                subCell.className = 'sub-cell';
+                subCell.dataset.x = i;
+                subCell.dataset.y = j;
+                subCell.style.backgroundColor = initialColors[i * 20 + j] || this.getRandomColor();
+                cell.appendChild(subCell);
             }
         }
-
-        // Mettre à jour la position
+    
         this.userPositions.set(userId, {x, y});
         this.positionCell(cell, x, y);
+    
+        if (userId !== this.myUserId) {
+            cell.addEventListener('click', (event) => this.handleColorBorrowing(event, userId));
+            cell.addEventListener('touchstart', (event) => this.handleColorBorrowing(event, userId));
+        }
     }
     
     updateSubCell(userId, subX, subY, color) {
@@ -672,7 +631,8 @@ class PoieticClient {
     }
 
     // SECTION: Gestion des utilisateurs
-    addNewUser(userId, position) {
+    addNewUser(userId, position, color) {
+        this.userColors.set(userId, color);
         this.updateCell(userId, position[0], position[1]);
     }
 
@@ -791,6 +751,7 @@ class PoieticClient {
     }
 
     handleInactivityTimeout() {
+        console.log('Inactivité détectée, déconnexion...');
         this.disconnect();
         
         // Afficher l'overlay avec transition
@@ -916,6 +877,8 @@ class PoieticClient {
 
     // SECTION: Utilitaires
     reconnect() {
+        console.log('Tentative de reconnexion...');
+        
         // Retirer l'overlay sans transition
         document.body.classList.remove('disconnected');
         const overlay = document.getElementById('disconnect-overlay');
@@ -956,6 +919,8 @@ class PoieticClient {
         clearTimeout(this.inactivityTimer);
         this.lastActivity = Date.now();
         this.disconnectedAt = null;
+
+        console.log('tat du client réinitialisé');
     }
 
     handleUserDisconnected(message) {
@@ -966,11 +931,13 @@ class PoieticClient {
     }
 
     handlePositionFree(position) {
+        console.log('Position libre:', position);
     }
 
     toggleZoom() {
         const zoomButton = document.getElementById('zone-2a1');
         zoomButton.classList.toggle('zoomed');
+        console.log('Zoom toggled'); // Pour débugger
     }
 
     initializeThemeButton() {
@@ -1286,13 +1253,31 @@ class PoieticClient {
 
     // Ajoutons une méthode pour vérifier la structure DOM
     checkDOMStructure() {
+        console.log('Structure DOM du color-palette:');
         const colorPalette = document.getElementById('color-palette');
+        console.log(colorPalette.innerHTML);
+        
+        console.log('Dimensions du color-palette:');
         const rect = colorPalette.getBoundingClientRect();
+        console.log({
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            left: rect.left
+        });
+        
+        console.log('Styles calculés du gradient-palette:');
+        console.log(window.getComputedStyle(this.gradientPalette));
+        
+        console.log('Styles calculés du user-palette:');
+        console.log(window.getComputedStyle(this.userPalette));
     }
 
     updateGradientPalette() {
+        console.log('Mise à jour gradient-palette');
         const ctx = this.gradientPalette.getContext('2d');
         if (!ctx) {
+            console.error('Impossible d\'obtenir le contexte 2D pour gradient-palette');
             return;
         }
 
@@ -1300,6 +1285,11 @@ class PoieticClient {
         const rect = this.gradientPalette.getBoundingClientRect();
         this.gradientPalette.width = rect.width;
         this.gradientPalette.height = rect.height;
+        
+        console.log('Dimensions du canvas:', {
+            width: rect.width,
+            height: rect.height
+        });
 
         // Effacer le canvas
         ctx.clearRect(0, 0, rect.width, rect.height);
@@ -1332,7 +1322,9 @@ class PoieticClient {
             ctx.fillRect(0, 0, rect.width, rect.height);
             ctx.globalCompositeOperation = 'source-over';
 
+            console.log('Gradient dessiné avec succès');
         } catch (error) {
+            console.error('Erreur lors du dessin du gradient:', error);
         }
     }
 

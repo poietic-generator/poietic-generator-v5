@@ -1,123 +1,329 @@
 import { ColorGenerator } from './poietic-color-generator.js';
 
 export class PoieticViewer {
-    constructor(gridId, isViewer = false) {
-        console.log('Initialisation du PoieticViewer');
-        this.grid = document.getElementById(gridId);
-        this.qrOverlay = document.getElementById('qr-overlay');
-        this.isViewer = isViewer;
+    constructor(gridId = 'poietic-grid', isObserver = true) {
+        const instanceId = `viewer-${Math.random().toString(36).substr(2, 9)}`;
+
+        if (!window.poieticViewerInstances) {
+            window.poieticViewerInstances = {};
+        }
+        window.poieticViewerInstances[instanceId] = this;
+
+        this.gridId = gridId;
+        this.isObserver = isObserver;
+        this.instanceId = instanceId;
+
+        // Initialiser les structures de données
         this.cells = new Map();
         this.userPositions = new Map();
+        this.userColors = new Map();
         this.gridSize = 1;
-        this.activeUsers = 0;
+        this.cellSize = 0;
+        this.subCellSize = 0;
+        this.isConnected = false;
 
-        // Montrer le QR code par défaut au chargement
-        this.showQRCode();
-
-        // Initialisation
-        this.initializeLayout();
-
-        // Créer l'élément de message d'erreur
-        this.errorOverlay = document.createElement('div');
-        this.errorOverlay.className = 'error-message';
-        this.errorOverlay.style.display = 'none';
-        this.qrOverlay.appendChild(this.errorOverlay);
-
-        this.connect();
-        this.requestFullscreen();
-
-        // Gestion du redimensionnement avec debounce
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                this.updateLayout();
-                this.updateAllCellPositions();
-            }, 250);
-        });
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.initialize());
+        } else {
+            this.initialize();
+        }
     }
 
-    initializeLayout() {
-        this.updateLayout();
-        window.addEventListener('resize', () => this.updateLayout());
-    }
-
-    updateLayout() {
-        if (!this.grid || !this.grid.parentElement) return;
-
-        const windowRatio = window.innerWidth / window.innerHeight;
-        const mainZone = this.grid.parentElement;
-        let containerSize;
-
-        // Calcul de la taille optimale du conteneur
-        if (windowRatio < 1) { // Portrait
-            containerSize = Math.min(window.innerWidth, window.innerHeight);
-            mainZone.style.width = '100vw';
-            mainZone.style.height = '100vw';
-        } else { // Paysage
-            containerSize = Math.min(window.innerWidth, window.innerHeight);
-            mainZone.style.width = '100vh';
-            mainZone.style.height = '100vh';
+    initialize() {
+        console.log(`Initializing viewer for grid: ${this.gridId}`);
+        this.grid = document.getElementById(this.gridId);
+        if (!this.grid) {
+            console.error(`Grid element with id ${this.gridId} not found`);
+            return;
         }
 
-        // Appliquer les dimensions au grid
-        const size = `${containerSize}px`;
-        this.grid.style.width = size;
-        this.grid.style.height = size;
+        this.overlay = document.getElementById('qr-overlay');
+        if (!this.overlay) {
+            console.error(`Overlay element not found for ${this.gridId}`);
+            return;
+        }
 
-        // Centrer la grille dans la fenêtre
-        mainZone.style.position = 'relative';
-        mainZone.style.display = 'flex';
-        mainZone.style.justifyContent = 'center';
-        mainZone.style.alignItems = 'center';
+        console.log(`Initializing viewer for ${this.gridId}...`);
+        this.resetViewerState();
+        this.connect();
+        this.addResizeListener();
+    }
 
-        // Ajuster l'overlay QR pour qu'il soit exactement superposé à la grille
-        if (this.qrOverlay) {
-            Object.assign(this.qrOverlay.style, {
-                position: 'absolute',
-                top: '0',
-                left: '0',
-                width: size,
-                height: size,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                pointerEvents: 'none'
-            });
+    resetViewerState() {
+        console.log('Resetting viewer state');
+        if (this.socket) {
+            this.socket.close();
+            this.socket = null;
+        }
 
-            // Ajuster l'image QR
-            const qrCode = this.qrOverlay.querySelector('#qr-code');
-            if (qrCode) {
-                Object.assign(qrCode.style, {
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain'
+        if (this.grid) {
+            this.grid.innerHTML = '';
+        }
+
+        this.cells.clear();
+        this.userPositions.clear();
+        this.userColors.clear();
+        this.gridSize = 1;
+        this.cellSize = 0;
+        this.subCellSize = 0;
+        this.isConnected = false;
+
+        if (this.overlay) {
+            this.overlay.classList.add('visible');
+        }
+    }
+
+    connect() {
+        if (this.isConnected) return;
+
+        const url = `ws://localhost:3001/updates?mode=full&type=observer&instanceId=${this.instanceId}`;
+        console.log(`Attempting WebSocket connection as viewer: ${url}`);
+
+        try {
+            this.socket = new WebSocket(url);
+
+            this.socket.onopen = () => {
+                console.log('WebSocket connection established in viewer mode');
+                this.isConnected = true;
+            };
+
+            this.socket.onclose = (event) => {
+                console.log('WebSocket connection closed:', {
+                    code: event.code,
+                    reason: event.reason,
+                    wasClean: event.wasClean,
+                    timestamp: new Date().toISOString()
+                });
+                this.isConnected = false;
+
+                setTimeout(() => {
+                    if (!this.isConnected) {
+                        console.log('Attempting to reconnect...');
+                        this.connect();
+                    }
+                }, 1000);
+            };
+
+            this.socket.onerror = (error) => {
+                console.error('WebSocket error:', {
+                    error: error,
+                    readyState: this.socket.readyState,
+                    timestamp: new Date().toISOString()
+                });
+            };
+
+            this.socket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log('Received message:', message.type, message);
+
+                    switch (message.type) {
+                        case 'initial_state':
+                            this.handleInitialState(message);
+                            break;
+                        case 'user_update':
+                            this.handleUserUpdate(message);
+                            break;
+                        case 'cell_update':
+                            this.handleCellUpdate(message);
+                            break;
+                        case 'user_left':
+                            this.handleUserLeft(message);
+                            break;
+                        case 'zoom_update':
+                            this.handleZoomUpdate(message);
+                            break;
+                        default:
+                            console.log('Unknown message type:', message.type);
+                    }
+                } catch (e) {
+                    console.error('Error processing message:', e, event.data);
+                }
+            };
+        } catch (e) {
+            console.error('Error creating WebSocket:', e);
+        }
+    }
+
+    handleInitialState(message) {
+        console.log('Processing initial state');
+        this.gridSize = message.grid_size;
+
+        // Traiter le grid_state
+        if (message.grid_state) {
+            const gridState = typeof message.grid_state === 'string' ?
+                JSON.parse(message.grid_state) : message.grid_state;
+
+            // Mettre à jour les positions des utilisateurs
+            if (gridState.user_positions) {
+                Object.entries(gridState.user_positions).forEach(([userId, position]) => {
+                    this.updateCell(userId, position[0], position[1]);
                 });
             }
         }
 
-        // Mettre à jour la taille des cellules
-        this.updateCellSizes(containerSize);
+        // Générer les couleurs des utilisateurs localement
+        if (message.user_colors) {
+            this.userColors = new Map();
+            Object.keys(message.user_colors).forEach(userId => {
+                const colors = ColorGenerator.generateInitialColors(userId);
+                this.userColors.set(userId, colors);
+            });
+        }
 
-        // Ajuster aussi la taille du message d'erreur
-        if (this.errorOverlay) {
-            const errorSize = Math.min(containerSize * 0.4, 300); // 40% de la taille du conteneur ou 300px max
-            Object.assign(this.errorOverlay.style, {
-                width: `${errorSize}px`,
-                height: `${errorSize * 0.3}px`, // Rectangle plus adapté pour le texte
+        // Mettre à jour les états des sous-cellules
+        if (message.sub_cell_states) {
+            Object.entries(message.sub_cell_states).forEach(([userId, subCells]) => {
+                Object.entries(subCells).forEach(([coords, color]) => {
+                    const [subX, subY] = coords.split(',').map(Number);
+                    this.updateSubCell(userId, subX, subY, color);
+                });
+            });
+        }
+
+        this.updateGridSize();
+    }
+
+    handleUserUpdate(message) {
+        if (message.user_positions) {
+            Object.entries(message.user_positions).forEach(([userId, position]) => {
+                this.updateCell(userId, position[0], position[1]);
             });
         }
     }
 
-    updateCellSizes(containerSize) {
-        const cellSize = containerSize / this.gridSize;
-        this.cells.forEach(cell => {
-            cell.style.width = `${cellSize}px`;
-            cell.style.height = `${cellSize}px`;
-        });
+    handleCellUpdate(message) {
+        if (message.user_id && typeof message.sub_x === 'number' &&
+            typeof message.sub_y === 'number' && message.color) {
+            this.updateSubCell(message.user_id, message.sub_x, message.sub_y, message.color);
+        }
     }
 
-    updateAllCellPositions() {
+    handleUserLeft(message) {
+        console.log('User left:', message.user_id);
+        if (message.user_id) {
+            this.removeUser(message.user_id);
+        }
+    }
+
+    handleZoomUpdate(message) {
+        if (typeof message.grid_size === 'number') {
+            this.updateZoom(
+                message.grid_size,
+                message.grid_state,
+                message.user_colors,
+                message.sub_cell_states
+            );
+        }
+    }
+
+    updateCell(userId, x, y) {
+        console.log(`Creating/updating cell for user ${userId} at (${x}, ${y})`);
+        let cell = this.cells.get(userId);
+
+        if (!cell) {
+            cell = document.createElement('div');
+            cell.className = 'user-cell';
+
+            for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 20; x++) {
+                    const subCell = document.createElement('div');
+                    subCell.className = 'sub-cell';
+                    subCell.dataset.x = x.toString();
+                    subCell.dataset.y = y.toString();
+                    cell.appendChild(subCell);
+                }
+            }
+
+            this.grid.appendChild(cell);
+            this.cells.set(userId, cell);
+        }
+
+        this.userPositions.set(userId, {x, y});
+        this.positionCell(cell, x, y);
+
+        if (this.overlay) {
+            this.overlay.classList.remove('visible');
+        }
+    }
+
+    positionCell(cell, x, y) {
+        const offset = Math.floor(this.gridSize / 2);
+        const pixelX = (x + offset) * this.cellSize;
+        const pixelY = (y + offset) * this.cellSize;
+        cell.style.left = `${pixelX}px`;
+        cell.style.top = `${pixelY}px`;
+        cell.style.width = `${this.cellSize}px`;
+        cell.style.height = `${this.cellSize}px`;
+    }
+
+    updateSubCell(userId, subX, subY, color) {
+        console.log(`Updating subcell for user ${userId} at (${subX}, ${subY}) with color ${color}`);
+        const cell = this.cells.get(userId);
+        if (cell) {
+            const subCell = cell.querySelector(`[data-x="${subX}"][data-y="${subY}"]`);
+            if (subCell) {
+                subCell.style.backgroundColor = color;
+            } else {
+                console.warn(`SubCell not found at ${subX},${subY} for user ${userId}`);
+            }
+        } else {
+            console.warn(`Cell not found for user ${userId}`);
+        }
+    }
+
+    addNewUser(userId, position, color) {
+        console.log(`Adding new user ${userId} at position (${position[0]}, ${position[1]})`);
+        this.userColors.set(userId, color);
+        this.updateCell(userId, position[0], position[1]);
+
+        if (this.overlay && this.cells.size > 0) {
+            this.overlay.classList.remove('visible');
+        }
+    }
+
+    removeUser(userId) {
+        console.log(`Removing user ${userId}`);
+        const cell = this.cells.get(userId);
+        if (cell) {
+            this.grid.removeChild(cell);
+            this.cells.delete(userId);
+            this.userPositions.delete(userId);
+            this.userColors.delete(userId);
+        }
+
+        if (this.cells.size === 0 && this.overlay) {
+            this.overlay.classList.add('visible');
+        }
+    }
+
+    updateZoom(newGridSize, gridState, userColors, subCellStates) {
+        this.gridSize = newGridSize;
+        this.userColors = new Map(Object.entries(userColors));
+
+        const parsedGridState = JSON.parse(gridState);
+        Object.entries(parsedGridState.user_positions).forEach(([userId, position]) => {
+            this.updateCell(userId, position[0], position[1]);
+        });
+
+        Object.entries(subCellStates).forEach(([userId, subCells]) => {
+            Object.entries(subCells).forEach(([coords, color]) => {
+                const [subX, subY] = coords.split(',').map(Number);
+                this.updateSubCell(userId, subX, subY, color);
+            });
+        });
+
+        this.updateGridSize();
+    }
+
+    updateGridSize() {
+        const screenSize = Math.min(window.innerWidth, window.innerHeight);
+        this.cellSize = screenSize / this.gridSize;
+        this.subCellSize = this.cellSize / 20;
+
+        this.grid.style.width = `${screenSize}px`;
+        this.grid.style.height = `${screenSize}px`;
+
         this.cells.forEach((cell, userId) => {
             const position = this.userPositions.get(userId);
             if (position) {
@@ -126,239 +332,9 @@ export class PoieticViewer {
         });
     }
 
-    connect() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/updates?mode=full&type=observer`;
-    
-        try {
-            this.socket = new WebSocket(wsUrl);
-            
-            this.socket.onopen = () => {
-                console.log('WebSocket connecté');
-                this.isConnected = true;
-                this.hideErrorMessage();
-            };
-    
-            this.socket.onmessage = (event) => {
-                console.log('Message reçu:', event.data);
-                try {
-                    const message = JSON.parse(event.data);
-                    this.handleMessage(message);
-                } catch (error) {
-                    console.error('Erreur lors du traitement du message:', error);
-                }
-            };
-    
-            this.socket.onclose = (event) => {
-                console.log('WebSocket déconnecté, code:', event.code);
-                const wasConnected = this.isConnected; // Sauvegarder l'état avant de le changer
-                this.isConnected = false;
-                
-                // Nettoyer l'affichage
-                this.grid.innerHTML = '';
-                this.cells.clear();
-                this.userPositions.clear();
-                this.activeUsers = 0;
-                this.showQRCode();
-    
-                // Si on était connecté avant la déconnexion,
-                // c'est que le serveur a été arrêté
-                if (wasConnected) {
-                    this.showErrorMessage('Server stopped (connection refused)');
-                } else {
-                    // Sinon c'est probablement un problème réseau
-                    this.showErrorMessage('Server unavailable (network issue)');
-                }
-                
-                setTimeout(() => this.connect(), 5000);
-            };
-    
-            this.socket.onerror = (error) => {
-                console.error('Erreur WebSocket:', error);
-            };
-    
-        } catch (error) {
-            this.showErrorMessage('Server stopped (connection refused)');
-            setTimeout(() => this.connect(), 5000);
-        }
-    }
-
-    handleMessage(message) {
-        try {
-            switch (message.type) {
-                case 'initial_state':
-                    this.initializeState(message);
-                    break;
-                case 'new_user':
-                    this.activeUsers++;
-                    this.hideQRCode();
-                    this.addNewUser(message.user_id, message.position);
-                    break;
-                case 'user_left':
-                    this.activeUsers--;
-                    this.removeUser(message.user_id);
-                    if (this.activeUsers <= 0) {
-                        this.showQRCode();
-                    }
-                    break;
-                case 'cell_update':
-                    this.updateSubCell(message.user_id, message.sub_x, message.sub_y, message.color);
-                    break;
-                case 'zoom_update':
-                    this.handleZoomUpdate(message);
-                    break;
-            }
-        } catch (error) {
-            console.error('Erreur lors du traitement du message:', error);
-        }
-    }
-
-    initializeState(state) {
-        this.gridSize = state.grid_size;
-        this.grid.innerHTML = '';
-        this.updateLayout();
-        
-        const gridState = JSON.parse(state.grid_state);
-        const userPositions = gridState.user_positions || {};
-        this.activeUsers = Object.keys(userPositions).length;
-        
-        // Mettre à jour la visibilité du QR code en fonction du nombre d'utilisateurs
-        if (this.activeUsers > 0) {
-            this.hideQRCode();
-        } else {
-            this.showQRCode();
-        }
-
-        Object.entries(userPositions).forEach(([userId, position]) => {
-            this.updateCell(userId, position[0], position[1]);
+    addResizeListener() {
+        window.addEventListener('resize', () => {
+            this.updateGridSize();
         });
-    }
-
-    handleZoomUpdate(message) {
-        if (this.gridSize === message.grid_size) {
-            const gridState = JSON.parse(message.grid_state);
-            Object.entries(gridState.user_positions).forEach(([userId, position]) => {
-                const cell = this.cells.get(userId);
-                if (cell) {
-                    this.positionCell(cell, position[0], position[1]);
-                }
-            });
-            return;
-        }
-
-        this.gridSize = message.grid_size;
-        const gridState = JSON.parse(message.grid_state);
-        this.updateLayout();
-        
-        const cellSize = this.grid.clientWidth / this.gridSize;
-        Object.entries(gridState.user_positions).forEach(([userId, position]) => {
-            const cell = this.cells.get(userId);
-            if (cell) {
-                cell.style.width = `${cellSize}px`;
-                cell.style.height = `${cellSize}px`;
-                this.positionCell(cell, position[0], position[1]);
-            }
-        });
-    }
-
-    updateCell(userId, x, y) {
-        let cell = this.cells.get(userId);
-        const isNewCell = !cell;
-        
-        if (isNewCell) {
-            cell = document.createElement('div');
-            cell.className = 'user-cell';
-            
-            const fragment = document.createDocumentFragment();
-            const colors = ColorGenerator.generateInitialColors(userId);
-            
-            for (let i = 0; i < 400; i++) {
-                const subCell = document.createElement('div');
-                subCell.className = 'sub-cell';
-                subCell.dataset.x = Math.floor(i / 20).toString();
-                subCell.dataset.y = (i % 20).toString();
-                subCell.style.backgroundColor = colors[i];
-                fragment.appendChild(subCell);
-            }
-            
-            cell.appendChild(fragment);
-            this.grid.appendChild(cell);
-            this.cells.set(userId, cell);
-        }
-
-        this.userPositions.set(userId, {x, y});
-        this.positionCell(cell, x, y);
-    }
-
-    updateSubCell(userId, subX, subY, color) {
-        const cell = this.cells.get(userId);
-        if (cell) {
-            const subCell = cell.children[subY * 20 + subX];
-            if (subCell) {
-                subCell.style.backgroundColor = color;
-            }
-        }
-    }
-
-    positionCell(cell, x, y) {
-        const totalSize = this.grid.offsetWidth;
-        const cellSize = totalSize / this.gridSize;
-        
-        const centerOffset = Math.floor(this.gridSize / 2);
-        const relativeX = x + centerOffset;
-        const relativeY = y + centerOffset;
-        
-        Object.assign(cell.style, {
-            position: 'absolute',
-            transform: `translate(${relativeX * cellSize}px, ${relativeY * cellSize}px)`,
-            width: `${cellSize}px`,
-            height: `${cellSize}px`,
-            transition: 'none'
-        });
-    }
-
-    addNewUser(userId, position) {
-        this.updateCell(userId, position[0], position[1]);
-    }
-
-    removeUser(userId) {
-        const cell = this.cells.get(userId);
-        if (cell) {
-            this.grid.removeChild(cell);
-            this.cells.delete(userId);
-        }
-        this.userPositions.delete(userId);
-    }
-
-    requestFullscreen() {
-        // Vérifier si le viewer n'est pas dans une iframe
-        if (window.self === window.top) {
-            const requestFullscreen = this.grid.requestFullscreen || this.grid.webkitRequestFullscreen || this.grid.mozRequestFullScreen || this.grid.msRequestFullscreen;
-            if (requestFullscreen) {
-                requestFullscreen.call(this.grid);
-            }
-        }
-    }
-
-    showQRCode() {
-        if (this.qrOverlay) {
-            this.qrOverlay.classList.add('visible');
-        }
-    }
-
-    hideQRCode() {
-        if (this.qrOverlay) {
-            this.qrOverlay.classList.remove('visible');
-        }
-    }
-
-    showErrorMessage(message) {
-        this.errorOverlay.textContent = message;
-        this.errorOverlay.style.display = 'flex';
-    }
-
-    hideErrorMessage() {
-        this.errorOverlay.style.display = 'none';
     }
 }
