@@ -4,6 +4,7 @@ require "json"
 require "http/web_socket"
 require "uuid"
 require "kemal"
+require "./file_storage"
 
 class PoieticRecorder
   property db : DB::Database
@@ -449,7 +450,8 @@ class PoieticRecorder
     end
 
     get "/player" do |env|
-      send_file env, "public/player.html"
+      file = FileStorage.get("player.html")
+      file.gets_to_end
     end
 
     # Démarrer le serveur

@@ -1,14 +1,18 @@
 #!/bin/bash
 
+# Produire les binaires
+shards build --production
+
 # Lancer le serveur d'enregistrement sur le port 3002
-crystal run src/cli/recorder-server.cr -- --port=3002 &
+
+./bin/recorder-server --port=3002 &
 PID_RECORDER=$!
 
 # Attendre un peu que le recorder démarre
 sleep 2
 
 # Lancer le serveur principal sur le port 3001
-crystal run src/cli/poietic-generator-api.cr -- --port=3001 &
+./bin/poietic-generator-api --port=3001 &
 PID_MAIN=$!
 
 # Fonction pour arrêter proprement les processus

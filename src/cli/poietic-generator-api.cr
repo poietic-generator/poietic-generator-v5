@@ -1,7 +1,8 @@
 require "kemal"
 require "uuid"
 require "json"
-require "./poietic-recorder"
+require "../poietic-recorder"
+require "../file_storage"
 
 class Grid
   property user_positions : Hash(String, Tuple(Int32, Int32))
@@ -508,7 +509,8 @@ get "/css/:file" do |env|
   env.response.headers["Pragma"] = "no-cache"
   env.response.headers["Expires"] = "0"
   env.response.headers["Content-Type"] = "text/css"
-  send_file env, "public/css/#{file}"
+  file = FileStorage.get("css/#{file}")
+  file.gets_to_end
 end
 
 # Route générique pour tous les fichiers JavaScript
@@ -518,7 +520,8 @@ get "/js/:file" do |env|
   env.response.headers["Pragma"] = "no-cache"
   env.response.headers["Expires"] = "0"
   env.response.headers["Content-Type"] = "application/javascript"
-  send_file env, "public/js/#{file}"
+  file = FileStorage.get("js/#{file}")
+  file.gets_to_end
 end
 
 # Route pour les fichiers JS des bots
@@ -528,36 +531,40 @@ get "/js/bots/:file" do |env|
   env.response.headers["Pragma"] = "no-cache"
   env.response.headers["Expires"] = "0"
   env.response.headers["Content-Type"] = "application/javascript"
-  send_file env, "public/js/bots/#{file}"
+  file = FileStorage.get("js/bots/#{file}")
+  file.gets_to_end
 end
 
 get "/" do |env|
-  send_file env, "public/index.html"
+  # env.response.headers["Content-Type"] = "text/html"
+  file = FileStorage.get("index.html")
+  file.gets_to_end
 end
 
 get "/monitoring" do |env|
-  send_file env, "public/monitoring.html"
+  file = FileStorage.get("monitoring.html")
+  file.gets_to_end
 end
 
 get "/viewer" do |env|
-  send_file env, "public/viewer.html"
+  file = FileStorage.get("viewer.html")
+  file.gets_to_end
 end
 
 get "/addbot" do |env|
-  send_file env, "public/addbot.html"
+  file = FileStorage.get("addbot.html")
+  file.gets_to_end
 end
 
 get "/bot" do |env|
-  send_file env, "public/bot.html"
+  file = FileStorage.get("bot.html")
+  file.gets_to_end
 end
 
 get "/images/:file" do |env|
   file = env.params.url["file"]
-  send_file env, "public/images/#{file}"
-end
-
-get "/autopoietic" do |env|
-  send_file env, "public/autopoietic.html"
+  file = FileStorage.get("images/#{file}")
+  file.gets_to_end
 end
 
 ws "/updates" do |socket, context|
@@ -701,4 +708,5 @@ Kemal.config.port = port
 puts "=== Démarrage du serveur principal sur le port #{port} ==="
 
 # Démarrer le serveur
+serve_static false
 Kemal.run

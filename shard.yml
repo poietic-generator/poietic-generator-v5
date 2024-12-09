@@ -5,8 +5,10 @@ authors:
 description: A new version of the Poietic Generator with WebSocket support
 
 targets:
-  poietic-generator:
-    main: src/poietic-generator-api.cr
+  poietic-generator-api:
+    main: src/cli/poietic-generator-api.cr
+  recorder-server:
+    main: src/cli/recorder-server.cr
 
 crystal: 1.0.0
 
@@ -22,5 +24,8 @@ dependencies:
   cairo:
     github: TamasSzekeres/cairo-cr
     version: ~> 1.0.3
-
+  baked_file_system:
+    github: schovi/baked_file_system
+    version: 0.10.0
+    
 license: MIT

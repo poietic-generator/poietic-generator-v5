@@ -1,15 +1,14 @@
-<<<<<<< HEAD
 /doc/
 /lib/
 /bin/
 /.shards/
 *.dwarf
 /config/database.yml
+/*.db
 
 # Libraries don't need dependency lock
 # Dependencies will be locked in application that uses them
 /shard.lock
-=======
 **/*~
 /_*/
 .bundle
@@ -31,4 +30,3 @@ vendor/bundle
 *.mcd.mld.svg
 *.mcd.svg
 
->>>>>>> origin/master

@@ -1,4 +1,4 @@
-require "./poietic-recorder"
+require "../poietic-recorder"
 
 puts "=== Démarrage du recorder ==="
 recorder = PoieticRecorder.new
