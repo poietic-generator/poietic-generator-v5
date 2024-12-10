@@ -5,14 +5,14 @@ shards build --production
 
 # Lancer le serveur d'enregistrement sur le port 3002
 
-./bin/recorder-server --port=3002 &
+./bin/poietic-recorder --port=3002 &
 PID_RECORDER=$!
 
 # Attendre un peu que le recorder démarre
 sleep 2
 
 # Lancer le serveur principal sur le port 3001
-./bin/poietic-generator-api --port=3001 &
+./bin/poietic-session --port=3001 &
 PID_MAIN=$!
 
 # Fonction pour arrêter proprement les processus

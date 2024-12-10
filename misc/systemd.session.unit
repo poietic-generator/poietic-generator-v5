@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/absolute/path/to/bin/poietic-generator-api --port=3001
+ExecStart=/usr/local/bin/poietic-session --port=3001
 Restart=on-failure
 RestartSec=5
 User=your-username

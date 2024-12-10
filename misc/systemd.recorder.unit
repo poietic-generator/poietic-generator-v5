@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/absolute/path/to/bin/recorder-server --port=3002
+ExecStart=/usr/local/bin/poietic-recorder --port=3002
 Restart=on-failure
 RestartSec=5
 User=your-username
