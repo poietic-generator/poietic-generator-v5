@@ -1,0 +1,15 @@
+[Unit]
+Description=Poietic Generator API Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/absolute/path/to/bin/poietic-generator-api --port=3001
+Restart=on-failure
+RestartSec=5
+User=your-username
+Group=your-group
+WorkingDirectory=/absolute/path/to/your/application
+
+[Install]
+WantedBy=multi-user.target

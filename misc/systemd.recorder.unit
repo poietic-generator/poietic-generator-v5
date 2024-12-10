@@ -1,2 +1,15 @@
-# A service unit file to run ./api-truc
+[Unit]
+Description=Poietic Recorder Service
+After=network.target
 
+[Service]
+Type=simple
+ExecStart=/absolute/path/to/bin/recorder-server --port=3002
+Restart=on-failure
+RestartSec=5
+User=your-username
+Group=your-group
+WorkingDirectory=/absolute/path/to/your/application
+
+[Install]
+WantedBy=multi-user.target
