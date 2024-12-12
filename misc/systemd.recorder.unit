@@ -1,0 +1,15 @@
+[Unit]
+Description=Poietic Recorder Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/poietic-recorder --port=3002
+Restart=on-failure
+RestartSec=5
+User=your-username
+Group=your-group
+WorkingDirectory=/absolute/path/to/your/application
+
+[Install]
+WantedBy=multi-user.target

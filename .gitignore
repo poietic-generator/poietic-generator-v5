@@ -30,3 +30,5 @@ vendor/bundle
 *.mcd.mld.svg
 *.mcd.svg
 
+.aider*
+.env
