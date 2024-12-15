@@ -449,8 +449,24 @@ class PoieticRecorder
       events.to_json
     end
 
-    get "/player" do |env|
+    get "/" do |env|
       file = FileStorage.get("player.html")
+      file.gets_to_end
+    end
+
+    # Routes pour les CSS
+    get "/css/:file" do |env|
+      file = env.params.url["file"]
+      env.response.headers["Content-Type"] = "text/css"
+      file = FileStorage.get("css/#{file}")
+      file.gets_to_end
+    end
+
+    # Routes pour les JS
+    get "/js/:file" do |env|
+      file = env.params.url["file"]
+      env.response.headers["Content-Type"] = "application/javascript"
+      file = FileStorage.get("js/#{file}")
       file.gets_to_end
     end
 

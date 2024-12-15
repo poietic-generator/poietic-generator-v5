@@ -10,6 +10,8 @@ class AddbotManager {
         this.minusButton = document.getElementById('minus-btn');
         this.botsContainer = document.getElementById('bots');
 
+        this.bots = new Map(); // Pour suivre les bots actifs
+
         this.initializeEventListeners();
         this.updateButtonStates();
         this.setInitialState();
@@ -64,17 +66,32 @@ class AddbotManager {
 
     addBot() {
         const iframe = document.createElement('iframe');
-        iframe.src = '/bot.html';
+        iframe.src = '/bot';
         iframe.className = 'bot-frame';
-        this.botsContainer.insertBefore(iframe, this.botsContainer.firstChild);
         
-        // Scroll vers le haut pour voir le nouveau bot
-        this.botsContainer.scrollTop = 0;
+        // Attendre que l'iframe soit chargée avant de l'ajouter à notre Map
+        iframe.onload = () => {
+            const botId = iframe.contentWindow.bot?.instanceId;
+            if (botId) {
+                this.bots.set(botId, iframe);
+            }
+        };
+        
+        this.botsContainer.insertBefore(iframe, this.botsContainer.firstChild);
     }
 
     removeBot() {
         const lastBot = this.botsContainer.lastChild;
         if (lastBot) {
+            const botId = lastBot.dataset.botId;
+            if (botId) {
+                // Déconnecter proprement le bot
+                const botWindow = lastBot.contentWindow;
+                if (botWindow && botWindow.bot) {
+                    botWindow.bot.disconnect();
+                }
+                this.bots.delete(botId);
+            }
             this.botsContainer.removeChild(lastBot);
         }
     }

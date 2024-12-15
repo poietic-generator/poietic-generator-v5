@@ -524,8 +524,19 @@ get "/js/:file" do |env|
   file.gets_to_end
 end
 
-# Route pour les fichiers JS des bots
-get "/js/bots/:file" do |env|
+# Rediriger les ressources /bot/css vers /css
+get "/bot/css/:file" do |env|
+  file = env.params.url["file"]
+  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+  env.response.headers["Pragma"] = "no-cache"
+  env.response.headers["Expires"] = "0"
+  env.response.headers["Content-Type"] = "text/css"
+  file = FileStorage.get("css/#{file}")
+  file.gets_to_end
+end
+
+# Rediriger les ressources /bot/js/bots vers /js/bots
+get "/bot/js/bots/:file" do |env|
   file = env.params.url["file"]
   env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
   env.response.headers["Pragma"] = "no-cache"
@@ -551,8 +562,24 @@ get "/viewer" do |env|
   file.gets_to_end
 end
 
-get "/addbot" do |env|
+get "/addbot.html" do |env|
   file = FileStorage.get("addbot.html")
+  file.gets_to_end
+end
+
+get "/css/addbot-style.css" do |env|
+  env.response.headers["Content-Type"] = "text/css"
+  file = FileStorage.get("css/addbot-style.css")
+  file.gets_to_end
+end
+
+# Pour le JS d'addbot
+get "/js/addbot-manager.js" do |env|
+  env.response.headers["Content-Type"] = "application/javascript"
+  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+  env.response.headers["Pragma"] = "no-cache"
+  env.response.headers["Expires"] = "0"
+  file = FileStorage.get("js/addbot-manager.js")
   file.gets_to_end
 end
 
@@ -691,6 +718,7 @@ get "/api/current-session" do |env|
     "{}"
   end
 end
+
 
 # Configuration du port
 port = if ARGV.includes?("--port")
