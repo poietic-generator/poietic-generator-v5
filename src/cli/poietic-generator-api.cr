@@ -111,12 +111,12 @@ class Grid
     # Créer un générateur de nombres pseudo-aléatoires avec l'UUID comme seed
     seed = user_id.bytes.reduce(0) { |acc, b| (acc << 8) + b }
     rng = Random.new(seed)
-    
+
     # Générer une couleur de base pour cet utilisateur
     base_h = rng.rand # Teinte de base (0.0 - 1.0)
     base_s = 0.6 + (rng.rand * 0.4) # Saturation (0.6 - 1.0)
     base_l = 0.4 + (rng.rand * 0.2) # Luminosité (0.4 - 0.6)
-    
+
     # Générer 400 variations autour de cette couleur
     Array.new(400) do |i|
       # Faire varier la teinte autour de la teinte de base
@@ -125,7 +125,7 @@ class Grid
       s = (base_s + (rng.rand * 0.2) - 0.1).clamp(0.0, 1.0)
       # Faire varier la luminosité
       l = (base_l + (rng.rand * 0.2) - 0.1).clamp(0.0, 1.0)
-      
+
       # Convertir HSL en RGB puis en hex
       hsl_to_hex(h, s, l)
     end
@@ -198,7 +198,7 @@ class Session
 
   def send_initial_state(user_id : String)
     grid_size = calculate_grid_size
-    
+
     # État commun pour tous les clients
     base_state = {
       type: "initial_state",
@@ -215,7 +215,7 @@ class Session
       # Pour les utilisateurs réguliers, on ajoute my_user_id
       client_state = base_state.merge({my_user_id: user_id})
       @users[user_id].send(client_state.to_json)
-      
+
       # Enregistrement pour le recorder
       recorder_state = {
         type: "initial_state",
@@ -225,10 +225,10 @@ class Session
         user_colors: @user_colors,
         sub_cell_states: serialize_sub_cell_states
       }
-      
+
       puts "=== Enregistrement de l'état initial pour le recorder ==="
       puts "=== État: #{recorder_state.inspect} ==="
-      
+
       API.recorder.record_event(JSON.parse(recorder_state.to_json))
     end
   end
@@ -269,19 +269,19 @@ class Session
     if position = @grid.get_user_position(user_id)
       # Enregistrer d'abord la déconnexion
       API.recorder.record_user_left(user_id)
-      
+
       # Envoyer la notification avant de supprimer l'utilisateur
       broadcast_user_left(user_id, position)
-      
+
       # Puis effectuer les modifications d'état
       @grid.remove_user(user_id)
       @users.delete(user_id)
       @user_colors.delete(user_id)
       @last_activity.delete(user_id)
-      
+
       # Mettre à jour le zoom après les modifications
       broadcast_zoom_update
-      
+
       # Vérifier si c'était le dernier utilisateur
       if @users.empty?
         puts "=== Dernier utilisateur déconnecté, fin de la session ==="
@@ -299,10 +299,10 @@ class Session
       user_colors: @user_colors,
       sub_cell_states: serialize_sub_cell_states
     }
-    
+
     # Enregistrer explicitement dans le recorder
     API.recorder.record_event(JSON.parse(zoom_update_message.to_json))
-    
+
     # Puis broadcaster aux clients et observers
     message = zoom_update_message.to_json
     broadcast(message)
@@ -316,7 +316,7 @@ class Session
       position: position,
       timestamp: Time.utc.to_unix_ms
     }.to_json
-    
+
     # S'assurer que le message est envoyé à tous (utilisateurs et observateurs)
     broadcast(message)
   end
@@ -452,7 +452,7 @@ class PoieticGeneratorApi
   property grid : Grid
   property user_colors : Hash(String, Array(String))
   property last_activity : Hash(String, Time)
-  
+
   def initialize
     @sockets = [] of HTTP::WebSocket
     @observers = [] of HTTP::WebSocket
@@ -493,110 +493,70 @@ end
 # Créer l'instance de l'API
 API = PoieticGeneratorApi.new
 
-# Ajouter avant les routes
+# Headers communs pour toutes les routes
 before_all do |env|
-  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-  env.response.headers["Pragma"] = "no-cache"
-  env.response.headers["Expires"] = "0"
-  env.response.headers["Last-Modified"] = Time.utc.to_rfc2822
-  env.response.headers["ETag"] = Random.new.hex(8)
-  env.response.headers["Vary"] = "*"
+  env.response.headers.merge!({
+    "Cache-Control" => "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma" => "no-cache",
+    "Expires" => "0",
+    "Last-Modified" => Time.utc.to_rfc2822,
+    "ETag" => Random.new.hex(8),
+    "Vary" => "*"
+  })
 end
 
+["", "monitoring", "viewer", "bot", "addbot"].each do |page|
+  get "/#{page}" do |env|
+    env.response.headers["Content-Type"] = "text/html"
+    file = FileStorage.get("#{page.empty? ? "index" : page}.html")
+    file.gets_to_end
+  end
+end
+
+# Route générique pour CSS
 get "/css/:file" do |env|
-  file = env.params.url["file"]
-  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-  env.response.headers["Pragma"] = "no-cache"
-  env.response.headers["Expires"] = "0"
+  file = env.params.url["file"].split("?").first
   env.response.headers["Content-Type"] = "text/css"
   file = FileStorage.get("css/#{file}")
   file.gets_to_end
 end
 
-# Route générique pour tous les fichiers JavaScript
+# Route générique pour JavaScript
 get "/js/:file" do |env|
-  file = env.params.url["file"]
-  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-  env.response.headers["Pragma"] = "no-cache"
-  env.response.headers["Expires"] = "0"
+  file = env.params.url["file"].split("?").first
   env.response.headers["Content-Type"] = "application/javascript"
   file = FileStorage.get("js/#{file}")
   file.gets_to_end
 end
 
-# Rediriger les ressources /bot/css vers /css
-get "/bot/css/:file" do |env|
-  file = env.params.url["file"]
-  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-  env.response.headers["Pragma"] = "no-cache"
-  env.response.headers["Expires"] = "0"
-  env.response.headers["Content-Type"] = "text/css"
-  file = FileStorage.get("css/#{file}")
-  file.gets_to_end
-end
-
-# Rediriger les ressources /bot/js/bots vers /js/bots
-get "/bot/js/bots/:file" do |env|
-  file = env.params.url["file"]
-  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-  env.response.headers["Pragma"] = "no-cache"
-  env.response.headers["Expires"] = "0"
+# Route pour les bots JavaScript
+get "/js/bots/:file" do |env|
+  file = env.params.url["file"].split("?").first
   env.response.headers["Content-Type"] = "application/javascript"
   file = FileStorage.get("js/bots/#{file}")
   file.gets_to_end
 end
 
-get "/" do |env|
-  # env.response.headers["Content-Type"] = "text/html"
-  file = FileStorage.get("index.html")
-  file.gets_to_end
+# Redirection des anciennes routes bot vers les nouvelles
+get "/bot/css/:file" do |env|
+  env.redirect "/css/#{env.params.url["file"]}"
 end
 
-get "/monitoring" do |env|
-  file = FileStorage.get("monitoring.html")
-  file.gets_to_end
+get "/bot/js/bots/:file" do |env|
+  env.redirect "/js/bots/#{env.params.url["file"]}"
 end
 
-get "/viewer" do |env|
-  file = FileStorage.get("viewer.html")
-  file.gets_to_end
-end
-
-get "/addbot.html" do |env|
-  file = FileStorage.get("addbot.html")
-  file.gets_to_end
-end
-
-get "/css/addbot-style.css" do |env|
-  env.response.headers["Content-Type"] = "text/css"
-  file = FileStorage.get("css/addbot-style.css")
-  file.gets_to_end
-end
-
-# Pour le JS d'addbot
-get "/js/addbot-manager.js" do |env|
-  env.response.headers["Content-Type"] = "application/javascript"
-  env.response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-  env.response.headers["Pragma"] = "no-cache"
-  env.response.headers["Expires"] = "0"
-  file = FileStorage.get("js/addbot-manager.js")
-  file.gets_to_end
-end
-
-get "/bot" do |env|
-  file = FileStorage.get("bot.html")
-  file.gets_to_end
-end
-
+# Route pour les images
 get "/images/:file" do |env|
   file = env.params.url["file"]
+  env.response.headers["Content-Type"] = MIME.from_filename(file)
   file = FileStorage.get("images/#{file}")
   file.gets_to_end
 end
 
 ws "/updates" do |socket, context|
   puts "=== Nouvelle connexion WebSocket sur /updates ==="
-  
+
   mode = context.request.query_params["mode"]?
   connection_type = context.request.query_params["type"]?
   is_observer = mode == "full" && connection_type == "observer"
@@ -660,26 +620,26 @@ end
 
 ws "/record" do |socket, context|
   puts "=== Nouvelle connexion WebSocket sur /record ==="
-  
+
   token = context.ws_route_lookup.params["token"]?
   unless token == "secret_token_123"
     socket.close
     next
   end
-  
+
   API.sockets << socket
   if API.sockets.size == 1
     puts "=== Premier utilisateur connecté, démarrage d'une nouvelle session ==="
     API.recorder.start_new_session
   end
-  
+
   API.recorders << socket
   puts "=== Recorder authentifié et connecté (total users: #{API.sockets.size}) ==="
-  
+
   socket.on_close do
     API.sockets.delete(socket)
     API.recorders.delete(socket)
-    
+
     if API.sockets.empty?
       puts "=== Dernier utilisateur déconnecté, fin de la session ==="
       API.recorder.end_current_session
