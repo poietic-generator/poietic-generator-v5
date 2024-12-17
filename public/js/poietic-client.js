@@ -184,7 +184,12 @@ class PoieticClient {
             this.disconnect();
         }
 
-        this.socket = new WebSocket('ws://localhost:3001/updates');
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;  // Utilise l'hôte actuel au lieu de localhost en dur
+        
+        console.log('Tentative de connexion WebSocket:', `${wsProtocol}//${wsHost}/updates`);
+        
+        this.socket = new WebSocket(`${wsProtocol}//${wsHost}/updates`);
         this.socket.onopen = () => {
             console.log('Connexion WebSocket établie');
             this.isConnected = true;
@@ -192,6 +197,7 @@ class PoieticClient {
         };
         this.socket.onmessage = (event) => {
             const message = JSON.parse(event.data);
+            console.log('Message reçu:', message.type);  // Log pour debug
             this.handleMessage(message);
         };
         this.socket.onclose = () => {

@@ -210,7 +210,8 @@ class PoieticRecorder
   end
 
   def connect_to_main_server
-    uri = URI.parse("ws://localhost:3001/record")
+    # Utiliser localhost en dev, l'IP du serveur en prod
+    uri = URI.parse("ws://#{host}:3001/record")
     uri.query = HTTP::Params.encode({"token" => "secret_token_123"})
 
     socket = HTTP::WebSocket.new(uri)
@@ -443,12 +444,13 @@ class PoieticRecorder
     end
   end
 
-  def start_server(port = 3002)
+  def start_server(port : Int32)
     puts "=== Démarrage du serveur recorder sur le port #{port} ==="
 
     # Configuration Kemal
     Kemal.config.port = port
-    Kemal.config.env = "development"
+    Kemal.config.env = "production"
+    Kemal.config.host_binding = "0.0.0.0"
 
     # Configuration CORS
     before_all do |env|

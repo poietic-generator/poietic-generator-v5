@@ -15,7 +15,7 @@ PID_RECORDER=$!
 sleep 2
 
 # Lancer le serveur principal sur le port 3001
-./bin/poietic-session --port=3001 &
+./bin/poietic-generator-api --port=3001 &
 PID_MAIN=$!
 
 # Fonction pour arrêter proprement les processus

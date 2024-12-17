@@ -49,10 +49,11 @@ class PoieticBot {
     }
 
     connect() {
-        this.cleanupOldConnections();
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;  // Au lieu de 'localhost'
         
-        const url = `ws://localhost:3001/updates?mode=bot&instanceId=${this.instanceId}`;
-        this.socket = new WebSocket(url);
+        console.log('Tentative de connexion WebSocket:', `${wsProtocol}//${wsHost}/updates`);
+        this.socket = new WebSocket(`${wsProtocol}//${wsHost}/updates`);
         window.existingBotSocket = this.socket;
         
         this.socket.onopen = () => {
@@ -158,7 +159,10 @@ class PoieticBot {
                 this.socket.close();
             }
 
-            this.socket = new WebSocket('ws://localhost:8080/ws');
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsHost = window.location.host;
+            
+            this.socket = new WebSocket(`${wsProtocol}//${wsHost}/updates`);
             window.existingBotSocket = this.socket;
 
             this.socket.onopen = () => {
@@ -220,7 +224,7 @@ class PoieticBot {
                         this.userPosition = {x: pos[0], y: pos[1]};
                     }
 
-                    // Mettre à jour les états des cellules
+                    // Mettre à jour les ��tats des cellules
                     if (message.sub_cell_states) {
                         this.sub_cell_states = message.sub_cell_states;
                         

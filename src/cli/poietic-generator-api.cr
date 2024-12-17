@@ -342,9 +342,11 @@ class Session
   end
 
   def send_to_observers(message)
-    @users.each do |user_id, socket|
-      if user_id.starts_with?("observer_")
+    @observers.each do |observer_id, socket|
+      begin
         socket.send(message)
+      rescue ex
+        puts "Error sending to observer #{observer_id}: #{ex.message}"
       end
     end
   end
@@ -692,9 +694,20 @@ else
   3001
 end
 
+# Configuration de Kemal avec les valeurs par défaut
 Kemal.config.port = port
-puts "=== Démarrage du serveur principal sur le port #{port} ==="
+Kemal.config.env = "development"  # Forcer le mode développement pour l'instant
+Kemal.config.host_binding = "0.0.0.0"  # Écouter sur toutes les interfaces
 
-# Démarrer le serveur
+puts "=== Configuration du serveur principal ==="
+puts "  Port: #{port}"
+puts "  Environment: #{Kemal.config.env}"
+puts "  Host: #{Kemal.config.host_binding}"
+puts "  Logging: enabled"
+
+# Activer les logs pour le débogage
+logging true
+
+# Garder toutes les routes et configurations existantes
 serve_static false
 Kemal.run

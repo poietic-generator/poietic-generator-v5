@@ -5,9 +5,9 @@ authors:
 description: A new version of the Poietic Generator with WebSocket support
 
 targets:
-  poietic-session:
+  poietic-generator-api:  # Serveur principal
     main: src/cli/poietic-generator-api.cr
-  poietic-recorder:
+  poietic-recorder:      # Recorder
     main: src/cli/recorder-server.cr
 
 crystal: 1.0.0

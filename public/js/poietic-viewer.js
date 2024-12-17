@@ -74,13 +74,14 @@ export class PoieticViewer {
     }
 
     connect() {
-        if (this.isConnected) return;
-
-        const url = `ws://localhost:3001/updates?mode=full&type=observer&instanceId=${this.instanceId}`;
-        console.log(`Attempting WebSocket connection as viewer: ${url}`);
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;
+        
+        const wsUrl = `${wsProtocol}//${wsHost}/updates?mode=full&type=observer`;
+        console.log('Tentative de connexion WebSocket:', wsUrl);
 
         try {
-            this.socket = new WebSocket(url);
+            this.socket = new WebSocket(wsUrl);
 
             this.socket.onopen = () => {
                 console.log('WebSocket connection established in viewer mode');

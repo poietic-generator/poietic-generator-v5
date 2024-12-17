@@ -606,6 +606,15 @@ class PoieticPlayer {
             overlay.classList.remove('visible');
         }
     }
+
+    connect() {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;  // Au lieu de 'localhost'
+        
+        console.log('Tentative de connexion WebSocket:', `${wsProtocol}//${wsHost}/updates`);
+        this.socket = new WebSocket(`${wsProtocol}//${wsHost}/updates`);
+        // ... reste du code ...
+    }
 }
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
