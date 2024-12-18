@@ -799,3 +799,60 @@ body.disconnected #zone-2a2 .import-icon {
         border-right: 1px solid #666;
     }
 }
+
+/* Optimisations mobiles */
+html, body {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+#main-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    /* Support pour le notch sur iOS */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Désactiver les sélections de texte sur mobile */
+* {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Ajuster la taille des éléments tactiles */
+.tool-circle {
+    min-width: 44px;  /* Recommandation Apple pour la taille minimale */
+    min-height: 44px;
+}
+
+/* Optimisation pour les écrans avec notch */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+        padding-top: max(0px, env(safe-area-inset-top));
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Ajustements spécifiques pour les petits écrans */
+@media (max-width: 480px) {
+    .tools-zone {
+        min-width: 44px; /* Taille minimale pour les zones d'outils */
+    }
+    
+    .tool-circle svg {
+        transform: scale(0.8); /* Réduire légèrement la taille des icônes */
+    }
+}
