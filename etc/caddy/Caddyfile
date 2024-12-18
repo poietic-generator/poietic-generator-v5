@@ -1,0 +1,46 @@
+# Redirection HTTP vers HTTPS
+http:// {
+    redir https://{host}{uri}
+}
+
+# Configuration du domaine principal
+https://poietic-generator.net {
+    tls glenux@glenux.net
+
+    # Route spéciale pour /player vers le port 3002
+    handle_path /player/* {
+        reverse_proxy 127.0.0.1:3002
+    }
+
+    # Route spéciale pour les API du player
+    handle /api/player/* {
+        reverse_proxy 127.0.0.1:3002 {
+            header_up Host {http.request.host}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+        }
+    }
+
+    # Routes vers le port 3001 (API principale)
+    handle /* {
+        reverse_proxy 127.0.0.1:3001 {
+            header_up Host {http.request.host}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_up Connection "Upgrade"
+            header_up Upgrade "websocket"
+        }
+    }
+}
+# Redirections des sous-domaines
+https://live.poietic-generator.net {
+    tls glenux@glenux.net
+    redir https://poietic-generator.net/viewer/
+}
+
+https://play.poietic-generator.net {
+    tls glenux@glenux.net
+    redir https://poietic-generator.net/player/
+}

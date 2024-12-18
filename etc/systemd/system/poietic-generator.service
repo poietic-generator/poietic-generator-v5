@@ -1,0 +1,14 @@
+[Unit]
+Description=Poietic Generator API Service
+After=network.target
+
+[Service]
+Type=simple
+User=debian
+WorkingDirectory=/usr/local/bin
+ExecStart=/usr/local/bin/poietic-generator-api --port=3001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
