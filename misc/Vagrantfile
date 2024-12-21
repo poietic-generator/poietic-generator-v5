@@ -1,0 +1,33 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure('2') do |config|
+  config.vm.box = 'debian/bookworm64'
+  config.vm.box_check_update = false
+
+  # Limiter la RAM des VM
+  config.vm.provider 'virtualbox' do |vb|
+    vb.memory = '4096'
+    vb.gui = false ## << corriger ici
+  end
+
+  config.vm.provider "libvirt" do |lv|
+    # lv.cpus = "2"
+    lv.memory = "4096"
+    # enable nested virtualization
+    lv.nested = true
+    lv.cpu_mode = "host-model"
+  end
+
+  # Mettre en place un cache pour APT
+  # config.vm.synced_folder 'v-cache', '/var/cache/apt'
+ 
+  config.vm.define 'poietic-server' do |machine|
+    machine.vm.hostname = 'poietic-server'
+    machine.vm.network 'forwarded_port', guest: 80, host: 8000
+    machine.vm.network 'forwarded_port', guest: 8080, host: 8080
+  end
+
+  config.vm.provision 'shell', path: 'provision.sh'
+end
+
