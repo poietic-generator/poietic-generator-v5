@@ -8,7 +8,13 @@ TODO: Write installation instructions here
 
 ## Usage
 
-TODO: Write usage instructions here
+### Run session manager
+
+FIXME: write instructions for session manager
+
+### Run recorder
+
+FIXME: write instructions for recorder
 
 ## Development
 

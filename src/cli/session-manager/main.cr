@@ -1,10 +1,10 @@
 require "kemal"
 require "uuid"
 require "json"
-require "../poietic-recorder"
-require "../file_storage"
-require "../grid"
-require "../session"
+require "../../poietic-recorder"
+require "../../file_storage"
+require "../../grid"
+require "../../session"
 
 module PoieticGenerator
   @@current_session = Session.new

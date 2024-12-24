@@ -1,4 +1,4 @@
-require "../poietic-recorder"
+require "../../poietic-recorder"
 
 puts "=== Démarrage du recorder ==="
 recorder = PoieticRecorder.new
@@ -13,4 +13,4 @@ else
   3002
 end
 puts "=== Port du recorder: #{port} ==="
-recorder.start_server(port) 
+recorder.start_server(port)
