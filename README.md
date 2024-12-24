@@ -1,24 +1,35 @@
 # poietic-generator-v5
 
-TODO: Write a description here
+## Requirements
+
+* Crystal Language: Version 1.3.0 or higher. Installation instructions can be found at [Crystal-lang.org](https://crystal-lang.org/install/).
+* SQLite3: Required by the recorder for event logging. Install via your system's package manager. For example, on Debian/Ubuntu:
+    ```bash
+    sudo apt-get install sqlite3 libsqlite3-dev
+    ```
+* Shards: Crystal's dependency manager (installed with Crystal). Ensure it is up-to-date.
 
 ## Installation
 
-TODO: Write installation instructions here
+1. Clone the Repository:
+    ```bash
+    git clone https://github.com/your-github-user/poietic-generator-v5.git
+    cd poietic-generator-v5
+    ```
+2. Install Dependencies:
+    ```bash
+    make prepare
+    ```
+3. Build the Project:
+    ```bash
+    make build
+    ```
 
 ## Usage
 
-### Run session manager
-
-FIXME: write instructions for session manager
-
-### Run recorder
-
-FIXME: write instructions for recorder
-
-## Development
-
-TODO: Write development instructions here
+```bash
+make run
+```
 
 ## Contributing
 
@@ -30,4 +41,4 @@ TODO: Write development instructions here
 
 ## Contributors
 
-- [your-name-here](https://github.com/your-github-user) - creator and maintainer
+FIXME: contributors
