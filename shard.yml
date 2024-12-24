@@ -5,6 +5,8 @@ authors:
 description: A new version of the Poietic Generator with WebSocket support
 
 targets:
+  nox:
+    main: lib/nox/src/nox/cli.cr
   poietic-session-manager:  # Serveur principal
     main: src/cli/session-manager/main.cr
   poietic-recorder:      # Recorder
@@ -27,5 +29,7 @@ dependencies:
   baked_file_system:
     github: schovi/baked_file_system
     version: 0.10.0
-    
+  nox:
+    github: matthewmcgarvey/nox
+    version: ">= 0.2.0, < 0.3.0"
 license: MIT

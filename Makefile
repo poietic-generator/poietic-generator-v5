@@ -4,17 +4,17 @@
 # Copyright © 2024 Glenn Y. Rolland <glenux@glenux.net>
 
 PREFIX=/usr
+SHARDS_BUILD_OPT=--progress --error-trace -Dpreview_mt
+CR_FILES=$(wildcard src/**/*.cr src/*.cr)
 
 .PHONY: all
 all: build
 
 .PHONY: prepare
-prepare:
-	shards install
+prepare: shard.lock
 
 .PHONY: build
-build:
-	shards build --progress --error-trace -Dpreview_mt
+build: bin/nox bin/poietic-session-manager bin/poietic-recorder
 	@echo SUCCESS
 
 .PHONY: watch
@@ -29,6 +29,22 @@ test:
 .PHONY: format
 format:
 	crystal tool format
+
+shard.lock: shard.yml
+	shards install
+
+bin/nox: shard.lock $(CR_FILES)
+	shards build $(SHARDS_BUILD_OPT) $(notdir $@)
+
+bin/poietic-session-manager: shard.lock $(CR_FILES)
+	shards build $(SHARDS_BUILD_OPT) $(notdir $@)
+
+bin/poietic-recorder: shard.lock $(CR_FILES)
+	shards build $(SHARDS_BUILD_OPT) $(notdir $@)
+
+.PHONY: run
+run: bin/nox bin/poietic-session-manager bin/poietic-recorder
+	./bin/nox start
 
 .PHONY: install
 install:
